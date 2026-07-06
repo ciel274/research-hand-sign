@@ -24,15 +24,17 @@ ROMAJI_TO_KANA = {
     "wa": "わ", "wo": "を", "nn": "ん"
 }
 
-def export_vla_datasets():
+def export_vla_datasets(n_clusters=64):
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     RAW_DIR = os.path.join(BASE_DIR, "data", "raw")
     PROCESSED_DIR = os.path.join(BASE_DIR, "data", "processed")
-    QUANTIZER_PATH = os.path.join(BASE_DIR, "src", "learning", "weights", "pose_quantizer.joblib")
+    QUANTIZER_PATH = os.path.join(BASE_DIR, "src", "learning", "weights", f"pose_quantizer_{n_clusters}.joblib")
 
-    # 出力ファイルパス
+    # 出力ファイルパス (クラスタ数をサフィックスに加える)
     continuous_jsonl_path = os.path.join(PROCESSED_DIR, "vla_continuous.jsonl")
-    discrete_jsonl_path = os.path.join(PROCESSED_DIR, "vla_discrete.jsonl")
+    discrete_jsonl_path = os.path.join(PROCESSED_DIR, f"vla_discrete_{n_clusters}.jsonl")
+    # デフォルトのファイルパスへのシンボリックリンクまたはコピーも作成 (互換性のため)
+    default_discrete_path = os.path.join(PROCESSED_DIR, "vla_discrete.jsonl")
 
     # CSVファイルの探索
     search_path = os.path.join(RAW_DIR, "sign_language_*.csv")
@@ -45,11 +47,9 @@ def export_vla_datasets():
     print(f"検出された生CSVファイル数: {len(csv_files)}")
 
     # 1. すべてのデータをロードし、フレーム単位で正規化する
-    # (量子化器の事前学習、およびデータセット作成用)
-    episodes_data = [] # 各エピソード（動画シーケンス）ごとのデータ
-    all_normalized_frames = [] # クラスタ学習用の全フレーム平面配列
+    episodes_data = []
+    all_normalized_frames = []
 
-    # 列名リストの生成 (右手63次元 + 左手63次元)
     r_cols = [f"R_joint_{i}_{coord}" for i in range(21) for coord in ["x", "y", "z"]]
     l_cols = [f"L_joint_{i}_{coord}" for i in range(21) for coord in ["x", "y", "z"]]
 
@@ -58,7 +58,6 @@ def export_vla_datasets():
         base_name = file_name.replace("sign_language_", "").replace(".csv", "")
         parts = base_name.split("_")
         
-        # ファイル名からラベルを抽出 (例: sign_language_a_1.csv -> 'a')
         if len(parts) > 1 and parts[-1].isdigit():
             label_romaji = "_".join(parts[:-1])
         else:
@@ -66,7 +65,6 @@ def export_vla_datasets():
             
         label_kana = ROMAJI_TO_KANA.get(label_romaji, label_romaji)
 
-        # CSVの読み込みとフレームごとの正規化
         df = pd.read_csv(file_path)
         episode_frames = []
 
@@ -74,11 +72,9 @@ def export_vla_datasets():
             r_data = row[r_cols].values.astype(float)
             l_data = row[l_cols].values.astype(float)
 
-            # 正規化
             r_norm = normalize_hand_data(r_data)
             l_norm = normalize_hand_data(l_data)
             
-            # 126次元に結合
             combined = np.concatenate([r_norm, l_norm])
             episode_frames.append(combined)
             all_normalized_frames.append(combined)
@@ -91,12 +87,12 @@ def export_vla_datasets():
         })
 
     # 2. 量子化器 (Quantizer) のロードまたは新規学習
-    quantizer = PoseQuantizer(n_clusters=min(64, len(all_normalized_frames)))
+    quantizer = PoseQuantizer(n_clusters=min(n_clusters, len(all_normalized_frames)))
     if os.path.exists(QUANTIZER_PATH):
         print(f"学習済みの量子化器をロードします: {QUANTIZER_PATH}")
         quantizer.load(QUANTIZER_PATH)
     else:
-        print("量子化モデルが見つからないため、現在の全データで新規に学習します。")
+        print(f"量子化モデル {QUANTIZER_PATH} が見つからないため、現在の全データで新規に学習します。")
         quantizer.fit(np.array(all_normalized_frames))
         quantizer.save(QUANTIZER_PATH)
 
@@ -105,22 +101,18 @@ def export_vla_datasets():
     discrete_records = []
 
     for ep in episodes_data:
-        # 指示テキスト (プロンプト)
         instruction = f"ひらがなの『{ep['kana']}』を手話（指文字）で表現してください。"
 
         # --- アプローチA (連続値エクスポート) ---
-        # 各フレームの126次元ベクトルをリストにする
         actions_list = ep["frames"].tolist()
         continuous_records.append({
             "instruction": instruction,
-            "image": "dummy_hand_sign_start.jpg", # VLAの画像入力部分のプレースホルダー
+            "image": "dummy_hand_sign_start.jpg",
             "actions": actions_list
         })
 
         # --- アプローチB (離散値エクスポート) ---
-        # 1フレームずつ量子化
         token_ids = quantizer.tokenize(ep["frames"])
-        # トークンIDの配列を文字列シーケンスに変換 (例: "<pose_12> <pose_45>")
         token_str = " ".join([f"<pose_{tid}>" for tid in token_ids])
         
         discrete_records.append({
@@ -138,10 +130,24 @@ def export_vla_datasets():
     with open(discrete_jsonl_path, "w", encoding="utf-8") as f:
         for rec in discrete_records:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            
+    # デフォルトファイルへシンボリックリンクまたはコピー (VLA訓練スクリプトのデフォルトパスとの互換性)
+    try:
+        import shutil
+        shutil.copyfile(discrete_jsonl_path, default_discrete_path)
+    except Exception as e:
+        print("警告: 互換用デフォルトファイルの複製に失敗しました:", e)
 
-    print("\nVLAデータセットのエクスポートが完了しました！")
+    print("\n✅ VLAデータセットのエクスポートが完了しました！")
     print(f" - [アプローチA] 連続座標シーケンス: {continuous_jsonl_path} ({len(continuous_records)} 件)")
-    print(f" - [アプローチB] 離散トークンシーケンス: {discrete_jsonl_path} ({len(discrete_records)} 件)")
+    print(f" - [アプローチB] 離散トークンシーケンス (K={n_clusters}): {discrete_jsonl_path} ({len(discrete_records)} 件)")
+    print(f" - [互換ファイル] デフォルト discrete パスに同期されました: {default_discrete_path}")
 
 if __name__ == "__main__":
-    export_vla_datasets()
+    import argparse
+    parser = argparse.ArgumentParser(description="VLAデータセットのJSONLへの書き出し")
+    parser.add_argument("--clusters", "-k", type=int, default=64, help="使用するK-Meansのクラスタ数 (デフォルト: 64)")
+    args = parser.parse_args()
+    
+    export_vla_datasets(n_clusters=args.clusters)
+

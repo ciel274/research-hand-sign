@@ -74,10 +74,17 @@ class PoseQuantizer:
         return self
 
 if __name__ == "__main__":
-    # モジュールの動作検証用メイン処理
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="K-Meansによる手話動作の離散量子化器の訓練")
+    parser.add_argument("--clusters", "-k", type=int, default=64, help="クラスタ数 (デフォルト: 64)")
+    args = parser.parse_args()
+    
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     DATASET_PATH = os.path.join(BASE_DIR, "data", "processed", "dataset.csv")
-    MODEL_PATH = os.path.join(BASE_DIR, "src", "learning", "weights", "pose_quantizer.joblib")
+    
+    # クラスタ数に応じたモデル保存ファイル名にする
+    MODEL_PATH = os.path.join(BASE_DIR, "src", "learning", "weights", f"pose_quantizer_{args.clusters}.joblib")
 
     if not os.path.exists(DATASET_PATH):
         print(f"エラー: データセットが見つかりません: {DATASET_PATH}")
@@ -90,8 +97,8 @@ if __name__ == "__main__":
 
         print(f"読み込みデータ件数: {len(X)} フレーム")
 
-        # 量子化器の訓練 (クラスタ数はデータの規模に合わせて調整可能)
-        n_clusters = min(64, len(X))
+        # 量子化器の訓練
+        n_clusters = min(args.clusters, len(X))
         quantizer = PoseQuantizer(n_clusters=n_clusters)
         quantizer.fit(X)
 
@@ -104,6 +111,7 @@ if __name__ == "__main__":
 
         # 平均二乗誤差(MSE)の算出
         mse = np.mean((X - X_reconstructed) ** 2)
-        print(f"\n【検証結果】量子化による再構成誤差 (Mean Squared Error): {mse:.6f}")
-        print(f"トークン系列 of first 10 items: {tokens[:10]}")
-        print("離散化テストが成功しました。")
+        print(f"\n【検証結果】クラスタ数 {n_clusters} における再構成誤差 (Mean Squared Error): {mse:.6f}")
+        print(f"トークン系列 (最初の10フレーム): {tokens[:10]}")
+        print(f"離散化テストが成功しました。モデルを保存しました: pose_quantizer_{n_clusters}.joblib")
+

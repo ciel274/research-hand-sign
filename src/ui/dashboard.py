@@ -5,7 +5,9 @@ import cv2
 import glob
 import os
 import time
+import json
 import numpy as np
+import pandas as pd
 import mediapipe as mp
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -29,13 +31,19 @@ app = FastAPI(title="Hand Sign Web Dashboard")
 # 各種ディレクトリパスの定義
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 RAW_DATA_DIR = os.path.join(BASE_DIR, "data", "raw")
+RAW_HIRAGANA_DIR = os.path.join(RAW_DATA_DIR, "hiragana")
+RAW_WORDS_DIR = os.path.join(RAW_DATA_DIR, "words")
 PROCESSED_DATA_DIR = os.path.join(BASE_DIR, "data", "processed")
-MODEL_PATH = os.path.join(
-    BASE_DIR, "src", "learning", "weights", "hand_sign_model_svm.joblib"
-)
+
+# モード別のモデルパス
+MODEL_PATH_HIRAGANA = os.path.join(BASE_DIR, "src", "learning", "weights", "hand_sign_model_svm_hiragana.joblib")
+MODEL_PATH_WORDS = os.path.join(BASE_DIR, "src", "learning", "weights", "hand_sign_model_svm_words.joblib")
+
+CUSTOM_WORDS_FILE = os.path.join(BASE_DIR, "data", "custom_words.json")
 TEMPLATE_PATH = os.path.join(BASE_DIR, "src", "ui", "templates", "index.html")
 
-os.makedirs(RAW_DATA_DIR, exist_ok=True)
+os.makedirs(RAW_HIRAGANA_DIR, exist_ok=True)
+os.makedirs(RAW_WORDS_DIR, exist_ok=True)
 os.makedirs(PROCESSED_DATA_DIR, exist_ok=True)
 
 # ローマ字からひらがなへのマッピング辞書
@@ -54,17 +62,34 @@ ROMAJI_TO_KANA = {
 
 # グローバルな状態管理変数
 state = {
+    "task_mode": "hiragana",     # "hiragana" または "words"
     "is_recording": False,
     "active_label": None,
     "current_file_path": None,
-    "last_recorded_file": None,  # 直近の録画ファイルを追跡
+    "last_recorded_file": None,
     "velocity": 0.0,
     "pred_class": "--",
     "pred_class_jp": "--",
     "confidence": 0.0,
     "is_stable": False,
     "text_buffer": "",
+    "velocity_threshold": 0.008, # スライダーで動的変更可能
+    "camera_active": True,
 }
+
+# カスタム単語リストの読み込み
+CUSTOM_WORDS = {}
+if os.path.exists(CUSTOM_WORDS_FILE):
+    try:
+        with open(CUSTOM_WORDS_FILE, "r", encoding="utf-8") as f:
+            CUSTOM_WORDS = json.load(f)
+    except Exception as e:
+        print(f"カスタム単語読み込みエラー: {e}")
+        CUSTOM_WORDS = {"ringo": "りんご", "arigatou": "ありがとう", "konnichiwa": "こんにちは"}
+else:
+    CUSTOM_WORDS = {"ringo": "りんご", "arigatou": "ありがとう", "konnichiwa": "こんにちは"}
+    with open(CUSTOM_WORDS_FILE, "w", encoding="utf-8") as f:
+        json.dump(CUSTOM_WORDS, f, ensure_ascii=False, indent=2)
 
 
 # カメラ＆MediaPipe制御用のクラス
@@ -77,65 +102,79 @@ class CameraManager:
         self.mp_hands = mp.solutions.hands
         self.mp_drawing = mp.solutions.drawing_utils
         self.model = None
-        self.load_inference_model()
         self.last_prediction = None
         self.last_input_time = 0
         self.stability_counter = 0
+        self.load_inference_model()
 
     def load_inference_model(self):
-        if os.path.exists(MODEL_PATH):
+        # 現在のモードに応じたモデルをロード
+        mode = state["task_mode"]
+        model_path = MODEL_PATH_HIRAGANA if mode == "hiragana" else MODEL_PATH_WORDS
+        
+        if os.path.exists(model_path):
             try:
-                self.model = load_model(MODEL_PATH)
-                print(f"モデルを読み込みました: {MODEL_PATH}")
+                self.model = load_model(model_path)
+                print(f"[{mode.upper()}] 推論モデルをロードしました: {os.path.basename(model_path)}")
             except Exception as e:
-                print(f"モデルロードエラー: {e}")
+                print(f"[{mode.upper()}] モデルロードエラー: {e}")
+                self.model = None
         else:
+            print(f"[{mode.upper()}] 学習済みモデルファイルが存在しません: {os.path.basename(model_path)}")
             self.model = None
 
     def _draw_overlay(self, frame):
-        # PIL Imageに変換して日本語を描画
         h, w, _ = frame.shape
         pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         draw = ImageDraw.Draw(pil_img)
 
-        # フォント設定（macOS環境前提）
+        # フォント設定
         font_path_bold = "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc"
         font_path_regular = "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc"
 
         try:
-            font_char = ImageFont.truetype(font_path_bold, 48)
+            font_char = ImageFont.truetype(font_path_bold, 40)
             font_text = ImageFont.truetype(font_path_regular, 24)
             font_sub = ImageFont.truetype(font_path_regular, 14)
         except Exception:
-            # フォント読み込みエラー時のフォールバック
             font_char = ImageFont.load_default()
             font_text = ImageFont.load_default()
             font_sub = ImageFont.load_default()
 
-        # 1. 右上に現在の予測文字 & 信頼度をオーバーレイ
+        # 1. 右上に現在の予測結果をオーバーレイ
         pred_char = state["pred_class"] or "--"
-        pred_char_jp = ROMAJI_TO_KANA.get(pred_char, pred_char)
+        mode = state["task_mode"]
+        
+        # モードに応じた表示名の変換
+        if mode == "hiragana":
+            pred_char_jp = ROMAJI_TO_KANA.get(pred_char, pred_char)
+        else:
+            pred_char_jp = CUSTOM_WORDS.get(pred_char, pred_char)
+            
         confidence = state["confidence"]
         is_stable = state["is_stable"]
         
         # 背景ボックス (右上)
-        box_w, box_h = 160, 90
+        box_w, box_h = 175, 95
         box_x, box_y = w - box_w - 15, 15
         draw.rounded_rectangle([box_x, box_y, box_x + box_w, box_y + box_h], radius=10, fill=(12, 14, 20, 200))
         
         # 予測ラベル描画
-        draw.text((box_x + 15, box_y + 10), "予測:", font=font_sub, fill=(200, 200, 200))
-        draw.text((box_x + 15, box_y + 28), pred_char_jp, font=font_char, fill=(168, 85, 247) if is_stable else (226, 232, 240))
+        draw.text((box_x + 15, box_y + 10), f"予測 ({mode[:4]}):", font=font_sub, fill=(200, 200, 200))
+        
+        # 文字サイズが大きい単語への対応
+        char_font = font_text if len(pred_char_jp) > 2 else font_char
+        draw.text((box_x + 15, box_y + 32), pred_char_jp, font=char_font, fill=(168, 85, 247) if is_stable else (226, 232, 240))
         
         # 信頼度/ステータス描画
         has_hands = (pred_char != "--")
         status_text = f"{confidence*100:.1f}%" if has_hands else "検出なし"
         status_color = (16, 185, 129) if is_stable else (148, 163, 184)
         draw.text(
-            (box_x + 85, box_y + 35), status_text, font=font_sub, fill=status_color
+            (box_x + 100, box_y + 35), status_text, font=font_sub, fill=status_color
         )
         draw.text(
-            (box_x + 85, box_y + 55),
+            (box_x + 100, box_y + 55),
             "STABLE" if is_stable else "MOVING",
             font=font_sub,
             fill=status_color,
@@ -144,7 +183,6 @@ class CameraManager:
         # 2. 下部に認識したテキストバッファを表示
         text_buf = state["text_buffer"]
         if text_buf:
-            # 文字列が長すぎる場合は末尾を表示
             max_len = 18
             display_text = (
                 text_buf if len(text_buf) <= max_len else "..." + text_buf[-max_len:]
@@ -170,7 +208,6 @@ class CameraManager:
 
     def start(self):
         if not self.running:
-            # 利用可能なカメラIDを自動探索 (0, 1, 2)
             self.cap = None
             for cam_id in [0, 1, 2]:
                 cap = cv2.VideoCapture(cam_id)
@@ -184,24 +221,29 @@ class CameraManager:
             if self.cap is None or not self.cap.isOpened():
                 print("エラー: 利用可能なカメラデバイスが見つかりませんでした。")
                 self.running = False
+                state["camera_active"] = False
                 return
 
             self.running = True
+            state["camera_active"] = True
             self.thread = threading.Thread(target=self.loop, daemon=True)
             self.thread.start()
 
     def stop(self):
         self.running = False
+        state["camera_active"] = False
+        state["pred_class"] = "--"
+        state["pred_class_jp"] = "--"
+        state["confidence"] = 0.0
+        state["is_stable"] = False
         if self.cap:
             self.cap.release()
 
     def loop(self):
-        # 速度計測・安定判定用
         prev_raw_coords = None
-        VELOCITY_THRESHOLD = 0.008
         STABILITY_FRAMES = 8
         CONFIDENCE_THRESHOLD = 0.85
-        INPUT_COOLDOWN = 1.0
+        INPUT_COOLDOWN = 1.2
 
         consecutive_failures = 0
 
@@ -213,19 +255,14 @@ class CameraManager:
                 if not success:
                     consecutive_failures += 1
                     time.sleep(0.05)
-                    # 連続30フレーム(約1.5秒)失敗した場合、カメラ再接続を試みる
                     if consecutive_failures >= 30:
-                        print(
-                            "カメラからの映像取得に失敗し続けたため、再接続を試みます..."
-                        )
+                        print("カメラからの映像取得に失敗し続けたため、再接続を試みます...")
                         self.cap.release()
                         for cam_id in [0, 1, 2]:
                             cap = cv2.VideoCapture(cam_id)
                             if cap.isOpened():
                                 self.cap = cap
-                                print(
-                                    f"カメラの再接続に成功しました (カメラID: {cam_id})"
-                                )
+                                print(f"カメラの再接続に成功しました (カメラID: {cam_id})")
                                 consecutive_failures = 0
                                 break
                             else:
@@ -234,7 +271,6 @@ class CameraManager:
 
                 consecutive_failures = 0
 
-                # 画面反転、RGB変換
                 frame = cv2.cvtColor(cv2.flip(frame, 1), cv2.COLOR_BGR2RGB)
                 frame.flags.writeable = False
                 results = hands.process(frame)
@@ -283,8 +319,12 @@ class CameraManager:
                 # --- 静止判定ロジック ---
                 current_time = time.time()
                 is_stable = False
+                
+                # スライダー値と連動
+                threshold = state["velocity_threshold"]
+                
                 if has_hands and velocity > 0.0:
-                    if velocity < VELOCITY_THRESHOLD:
+                    if velocity < threshold:
                         self.stability_counter += 1
                     else:
                         self.stability_counter = 0
@@ -311,7 +351,14 @@ class CameraManager:
                         confidence = probs[max_idx]
 
                         state["pred_class"] = pred_class
-                        state["pred_class_jp"] = ROMAJI_TO_KANA.get(pred_class, pred_class)
+                        
+                        mode = state["task_mode"]
+                        if mode == "hiragana":
+                            pred_class_jp = ROMAJI_TO_KANA.get(pred_class, pred_class)
+                        else:
+                            pred_class_jp = CUSTOM_WORDS.get(pred_class, pred_class)
+                            
+                        state["pred_class_jp"] = pred_class_jp
                         state["confidence"] = float(confidence)
 
                         if confidence >= CONFIDENCE_THRESHOLD:
@@ -320,10 +367,10 @@ class CameraManager:
                                 or (current_time - self.last_input_time)
                                 > INPUT_COOLDOWN
                             ):
-                                state["text_buffer"] += ROMAJI_TO_KANA.get(pred_class, pred_class)
+                                state["text_buffer"] += f" {pred_class_jp}" if mode == "words" else pred_class_jp
                                 self.last_prediction = pred_class
                                 self.last_input_time = current_time
-                                self.stability_counter = -5  # しばらく入力をロック
+                                self.stability_counter = -5  # 入力後の小クールダウン
                     except Exception as e:
                         print(f"推論エラー: {e}")
                 elif not has_hands:
@@ -335,20 +382,17 @@ class CameraManager:
                 if state["is_recording"] and state["current_file_path"]:
                     try:
                         with open(state["current_file_path"], "a") as f:
-                            # タイムスタンプ + 右手(63) + 左手(63)
                             row = [time.time()] + right_hand_data + left_hand_data
                             row_str = ",".join(map(str, row)) + "\n"
                             f.write(row_str)
                     except Exception as e:
                         print(f"録画書き込みエラー: {e}")
 
-                # --- フレームに認識結果をオーバーレイ描画 ---
                 frame = self._draw_overlay(frame)
 
-                # ストリーム用フレーム更新
                 _, jpeg = cv2.imencode(".jpg", frame)
                 self.latest_frame = jpeg.tobytes()
-                time.sleep(0.03)  # 約30fpsに制限
+                time.sleep(0.03)
 
 
 camera = CameraManager()
@@ -372,7 +416,12 @@ def read_index():
     return HTMLResponse(content=html_content, status_code=200)
 
 
-# --- カメラ配信エンドポイント ---
+@app.get("/video_feed")
+def video_feed():
+    return StreamingResponse(
+        gen(camera), media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+
 def gen(cam):
     while cam.running:
         if cam.latest_frame:
@@ -382,83 +431,123 @@ def gen(cam):
             )
         time.sleep(0.03)
 
+# --- カメラ制御 API ---
 
-@app.get("/video_feed")
-def video_feed():
-    return StreamingResponse(
-        gen(camera), media_type="multipart/x-mixed-replace; boundary=frame"
-    )
+@app.post("/api/camera/start")
+def start_camera():
+    camera.start()
+    return {"status": "success", "camera_active": True}
+
+@app.post("/api/camera/stop")
+def stop_camera():
+    camera.stop()
+    return {"status": "success", "camera_active": False}
 
 
-# --- API エンドポイント ---
+# --- 1. タスクモード API ---
 
+@app.post("/api/mode/{mode_name}")
+def set_task_mode(mode_name: str):
+    if mode_name in ["hiragana", "words"]:
+        state["task_mode"] = mode_name
+        camera.load_inference_model() # モデルの切り替えロード
+        return {"status": "success", "task_mode": mode_name}
+    return {"status": "error", "message": "無効なモード名です。"}
+
+
+# --- 2. カスタム単語操作 API ---
+
+@app.get("/api/words")
+def get_custom_words():
+    return CUSTOM_WORDS
+
+
+class WordPayload(BaseModel):
+    romaji: str
+    kana: str
+
+
+@app.post("/api/words/add")
+def add_custom_word(payload: WordPayload):
+    romaji = payload.romaji.strip().lower()
+    kana = payload.kana.strip()
+    
+    if not romaji or not kana:
+        return {"status": "error", "message": "ローマ字IDとかな表記の両方を入力してください。"}
+        
+    CUSTOM_WORDS[romaji] = kana
+    
+    # 永続化保存
+    try:
+        with open(CUSTOM_WORDS_FILE, "w", encoding="utf-8") as f:
+            json.dump(CUSTOM_WORDS, f, ensure_ascii=False, indent=2)
+        return {"status": "success", "words": CUSTOM_WORDS}
+    except Exception as e:
+        return {"status": "error", "message": f"ファイルの書き込みに失敗しました: {e}"}
+
+
+@app.post("/api/words/delete/{romaji}")
+def delete_custom_word(romaji: str):
+    if romaji in CUSTOM_WORDS:
+        # 単語の定義を削除
+        del CUSTOM_WORDS[romaji]
+        
+        # 永続化保存
+        try:
+            with open(CUSTOM_WORDS_FILE, "w", encoding="utf-8") as f:
+                json.dump(CUSTOM_WORDS, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"ファイルの更新に失敗しました: {e}")
+            
+        # 関連する録画CSVファイルも物理削除
+        files = glob.glob(os.path.join(RAW_WORDS_DIR, f"sign_language_{romaji}_*.csv"))
+        deleted_count = 0
+        for f in files:
+            try:
+                os.remove(f)
+                deleted_count += 1
+            except Exception as e:
+                print(f"関連ファイルの削除エラー: {e}")
+                
+        return {
+            "status": "success", 
+            "message": f"単語と関連データ {deleted_count} 件を削除しました。",
+            "words": CUSTOM_WORDS
+        }
+    return {"status": "error", "message": "該当する単語が見つかりませんでした。"}
+
+
+# --- 3. データカウント API ---
 
 @app.get("/api/counts")
 def get_dataset_counts():
-    """
-    data/raw 以下の各文字ごとの収録ファイル数をカウントして返します。
-    """
+    mode = state["task_mode"]
     counts = {}
-    # 全ての50音に対して0で初期化
-    romaji_list = [
-        "a",
-        "i",
-        "u",
-        "e",
-        "o",
-        "ka",
-        "ki",
-        "ku",
-        "ke",
-        "ko",
-        "sa",
-        "si",
-        "su",
-        "se",
-        "so",
-        "ta",
-        "ti",
-        "tu",
-        "te",
-        "to",
-        "na",
-        "ni",
-        "nu",
-        "ne",
-        "no",
-        "ha",
-        "hi",
-        "hu",
-        "he",
-        "ho",
-        "ma",
-        "mi",
-        "mu",
-        "me",
-        "mo",
-        "ya",
-        "yu",
-        "yo",
-        "ra",
-        "ri",
-        "ru",
-        "re",
-        "ro",
-        "wa",
-        "wo",
-        "nn",
-    ]
-    for ro in romaji_list:
-        counts[ro] = 0
+    
+    # モード別に集計対象のラベルリストを準備
+    if mode == "hiragana":
+        labels = [
+            "a", "i", "u", "e", "o", "ka", "ki", "ku", "ke", "ko",
+            "sa", "si", "su", "se", "so", "ta", "ti", "tu", "te", "to",
+            "na", "ni", "nu", "ne", "no", "ha", "hi", "hu", "he", "ho",
+            "ma", "mi", "mu", "me", "mo", "ya", "yu", "yo", "ra", "ri",
+            "ru", "re", "ro", "wa", "wo", "nn"
+        ]
+        target_dir = RAW_HIRAGANA_DIR
+    else:
+        labels = list(CUSTOM_WORDS.keys())
+        target_dir = RAW_WORDS_DIR
 
-    # 実際のファイル数を数える
-    csv_files = glob.glob(os.path.join(RAW_DATA_DIR, "sign_language_*.csv"))
+    for label in labels:
+        counts[label] = 0
+
+    # 実際のファイル数を集計
+    csv_files = glob.glob(os.path.join(target_dir, "sign_language_*.csv"))
     for file_path in csv_files:
         file_name = os.path.basename(file_path)
         base_name = file_name.replace("sign_language_", "").replace(".csv", "")
         parts = base_name.split("_")
 
-        # ラベルの特定
         if len(parts) > 1 and parts[-1].isdigit():
             label = "_".join(parts[:-1])
         else:
@@ -470,17 +559,18 @@ def get_dataset_counts():
     return counts
 
 
+# --- 4. 録画制御 API ---
+
 @app.post("/api/record/start/{label}")
 def record_start(label: str):
-    """
-    録画を開始し、自動ナンバリングした新規CSVファイルを用意します。
-    """
     state["is_recording"] = True
     state["active_label"] = label
+    
+    mode = state["task_mode"]
+    target_dir = RAW_HIRAGANA_DIR if mode == "hiragana" else RAW_WORDS_DIR
 
-    # 自動ナンバリング処理
     existing_files = glob.glob(
-        os.path.join(RAW_DATA_DIR, f"sign_language_{label}_*.csv")
+        os.path.join(target_dir, f"sign_language_{label}_*.csv")
     )
     indices = []
     for f in existing_files:
@@ -493,9 +583,9 @@ def record_start(label: str):
 
     next_idx = max(indices) + 1 if indices else 1
     file_name = f"sign_language_{label}_{next_idx}.csv"
-    state["current_file_path"] = os.path.join(RAW_DATA_DIR, file_name)
+    state["current_file_path"] = os.path.join(target_dir, file_name)
 
-    # ヘッダーを作成
+    # ヘッダー作成
     with open(state["current_file_path"], "w") as f:
         header = ["timestamp"]
         for i in range(21):
@@ -504,20 +594,17 @@ def record_start(label: str):
             header.extend([f"L_joint_{i}_x", f"L_joint_{i}_y", f"L_joint_{i}_z"])
         f.write(",".join(header) + "\n")
 
-    print(f"録画開始: {file_name}")
+    print(f"[{mode.upper()} 録画開始]: {file_name}")
     return {"status": "started", "file": file_name}
 
 
 @app.post("/api/record/stop")
 def record_stop():
-    """
-    録画を停止します。
-    """
     print(
         f"録画停止: {os.path.basename(state['current_file_path']) if state['current_file_path'] else 'None'}"
     )
     state["is_recording"] = False
-    state["last_recorded_file"] = state["current_file_path"]  # 削除用に記録
+    state["last_recorded_file"] = state["current_file_path"]
     state["active_label"] = None
     state["current_file_path"] = None
     return {"status": "stopped"}
@@ -525,9 +612,6 @@ def record_stop():
 
 @app.post("/api/record/delete_last")
 def delete_last_record():
-    """
-    直近に録画された1件のCSVファイルを物理削除します。
-    """
     last_file = state.get("last_recorded_file")
     if last_file and os.path.exists(last_file):
         try:
@@ -545,12 +629,13 @@ def delete_last_record():
 
 @app.post("/api/record/clear_class/{label}")
 def clear_class_records(label: str):
-    """
-    指定した文字（ラベル）のすべてのCSVデータを物理削除します。
-    """
-    files = glob.glob(os.path.join(RAW_DATA_DIR, f"sign_language_{label}_*.csv"))
+    mode = state["task_mode"]
+    target_dir = RAW_HIRAGANA_DIR if mode == "hiragana" else RAW_WORDS_DIR
+    
+    files = glob.glob(os.path.join(target_dir, f"sign_language_{label}_*.csv"))
     if not files:
         return {"status": "success", "message": f"'{label}' のデータは既に空です。"}
+        
     deleted_count = 0
     for f in files:
         try:
@@ -558,19 +643,25 @@ def clear_class_records(label: str):
             deleted_count += 1
         except Exception as e:
             print(f"ファイル削除エラー ({f}): {e}")
+            
     state["last_recorded_file"] = None
-    print(f"'{label}' のデータを {deleted_count} 件削除しました。")
+    print(f"[{mode.upper()}] '{label}' のデータを {deleted_count} 件削除しました。")
     return {
         "status": "success",
         "message": f"'{label}' の録画データを {deleted_count} 件すべて削除しました。",
     }
 
 
+# --- 5. パラメータ / 設定 API ---
+
+@app.post("/api/settings/velocity")
+def update_velocity_threshold(threshold: float):
+    state["velocity_threshold"] = threshold
+    return {"status": "success", "velocity_threshold": threshold}
+
+
 @app.get("/api/status")
 def get_status():
-    """
-    現在のリアルタイム予測状態や速度、テキストバッファを返します。
-    """
     return state
 
 
@@ -581,19 +672,22 @@ def clear_text():
     return {"status": "cleared"}
 
 
+# --- 6. 機械学習 & VLA API ---
+
 @app.post("/api/preprocess")
 def run_preprocess():
-    """
-    データセットの一括前処理を行います。
-    """
+    mode = state["task_mode"]
+    target_raw_dir = RAW_HIRAGANA_DIR if mode == "hiragana" else RAW_WORDS_DIR
+    output_csv = os.path.join(PROCESSED_DATA_DIR, f"dataset_{mode}.csv")
+    
     try:
         preprocess_all_raw_data(
-            raw_dir=RAW_DATA_DIR,
-            output_csv=os.path.join(PROCESSED_DATA_DIR, "dataset.csv"),
+            raw_dir=target_raw_dir,
+            output_csv=output_csv,
         )
         return {
             "status": "success",
-            "message": "一括前処理（データの正規化と統合）が完了しました！",
+            "message": f"[{mode.upper()}] 一括前処理（データの正規化と統合）が完了しました！",
         }
     except Exception as e:
         return {"status": "error", "message": f"前処理エラー: {e}"}
@@ -601,35 +695,47 @@ def run_preprocess():
 
 @app.post("/api/train")
 def run_train():
-    """
-    モデルの学習を実行し、完了後に推論用モデルをリロードします。
-    """
+    mode = state["task_mode"]
+    dataset_path = os.path.join(PROCESSED_DATA_DIR, f"dataset_{mode}.csv")
+    model_output_dir = os.path.join(BASE_DIR, "src", "learning", "weights")
+    
+    if not os.path.exists(dataset_path):
+        return {
+            "status": "error",
+            "message": f"統合データファイルが見つかりません。先に前処理を実行してください。"
+        }
+        
     try:
+        # train_modelを実行 (出力モデルファイル名は train_model 側で固定されている場合があるため、完了後にモード別のファイル名にリネーム)
         train_model(
-            dataset_path=os.path.join(PROCESSED_DATA_DIR, "dataset.csv"),
-            model_output_dir=os.path.join(BASE_DIR, "src", "learning", "weights"),
+            dataset_path=dataset_path,
+            model_output_dir=model_output_dir,
             model_type="svm",
         )
-        # 学習が終わったら推論モデルを最新の物にリロード
-        camera.load_inference_model()
+        
+        # 出来上がったモデルをリネームして退避
+        default_model_path = os.path.join(model_output_dir, "hand_sign_model_svm.joblib")
+        target_model_path = MODEL_PATH_HIRAGANA if mode == "hiragana" else MODEL_PATH_WORDS
+        
+        if os.path.exists(default_model_path):
+            if os.path.exists(target_model_path):
+                os.remove(target_model_path)
+            os.rename(default_model_path, target_model_path)
+            
+        camera.load_inference_model() # 推論器の再ロード
         return {
             "status": "success",
-            "message": "学習が完了し、最新のモデルが推論用にロードされました！",
+            "message": f"[{mode.upper()}] 学習が完了し、最新のモデルが推論用にロードされました！",
         }
     except Exception as e:
         return {"status": "error", "message": f"学習エラー: {e}"}
 
 
-# --- VLA & 離散化関連 API ---
-
 @app.post("/api/vla/quantize")
 def run_vla_quantize(n_clusters: int = 64):
-    """
-    データセットを読み込み、K-Meansでポーズの量子化器を学習させます。
-    再構成誤差（MSE）を返します。
-    """
-    dataset_path = os.path.join(PROCESSED_DATA_DIR, "dataset.csv")
-    quantizer_path = os.path.join(BASE_DIR, "src", "learning", "weights", "pose_quantizer.joblib")
+    mode = state["task_mode"]
+    dataset_path = os.path.join(PROCESSED_DATA_DIR, f"dataset_{mode}.csv")
+    quantizer_path = os.path.join(BASE_DIR, "src", "learning", "weights", f"pose_quantizer_{n_clusters}.joblib")
     
     if not os.path.exists(dataset_path):
         return {
@@ -642,21 +748,20 @@ def run_vla_quantize(n_clusters: int = 64):
         feature_cols = [col for col in df.columns if col not in ['timestamp', 'label']]
         X = df[feature_cols].values
         
-        # クラスタ数がデータ数を超えないように調整
         actual_clusters = min(n_clusters, len(X))
         
         quantizer = PoseQuantizer(n_clusters=actual_clusters)
         quantizer.fit(X)
         quantizer.save(quantizer_path)
         
-        # 再構成誤差(MSE)の算出
+        # 再構成誤差(MSE)
         tokens = quantizer.tokenize(X)
         X_recon = quantizer.detokenize(tokens)
         mse = float(np.mean((X - X_recon) ** 2))
         
         return {
             "status": "success",
-            "message": f"ポーズ量子化モデル（K-Means）の学習が完了しました！\nクラスタ数: {actual_clusters}\n再構成誤差 (MSE): {mse:.6f}",
+            "message": f"ポーズ量子化モデル (K={actual_clusters}) の学習が完了しました！\n再構成誤差 (MSE): {mse:.6f}",
             "mse": mse,
             "num_frames": len(X),
             "num_clusters": actual_clusters,
@@ -667,17 +772,14 @@ def run_vla_quantize(n_clusters: int = 64):
 
 
 @app.post("/api/vla/export")
-def run_vla_export():
-    """
-    生CSVデータから、アプローチA（連続値）およびB（離散値）のVLA用データセットを書き出します。
-    """
+def run_vla_export(n_clusters: int = 64):
+    mode = state["task_mode"]
     continuous_path = os.path.join(PROCESSED_DATA_DIR, "vla_continuous.jsonl")
-    discrete_path = os.path.join(PROCESSED_DATA_DIR, "vla_discrete.jsonl")
+    discrete_path = os.path.join(PROCESSED_DATA_DIR, f"vla_discrete_{n_clusters}.jsonl")
     
     try:
-        export_vla_datasets()
+        export_vla_datasets(n_clusters=n_clusters)
         
-        # エクスポートファイルのプレビューを読み込む
         preview_continuous = ""
         preview_discrete = ""
         
@@ -691,7 +793,7 @@ def run_vla_export():
                 
         return {
             "status": "success",
-            "message": "VLA用データセットの書き出しに成功しました！",
+            "message": f"VLA用データセットのエクスポートが完了しました！ (K={n_clusters})",
             "continuous_file": os.path.basename(continuous_path),
             "discrete_file": os.path.basename(discrete_path),
             "preview_continuous": preview_continuous,
@@ -702,28 +804,24 @@ def run_vla_export():
 
 
 @app.get("/api/vla/stats")
-def get_vla_stats():
-    """
-    ポーズ量子化器とVLAデータセットの現在のステータス、およびポーズの出現頻度分布を返します。
-    """
-    quantizer_path = os.path.join(BASE_DIR, "src", "learning", "weights", "pose_quantizer.joblib")
-    dataset_path = os.path.join(PROCESSED_DATA_DIR, "dataset.csv")
+def get_vla_stats(n_clusters: int = 64):
+    mode = state["task_mode"]
+    quantizer_path = os.path.join(BASE_DIR, "src", "learning", "weights", f"pose_quantizer_{n_clusters}.joblib")
+    dataset_path = os.path.join(PROCESSED_DATA_DIR, f"dataset_{mode}.csv")
     continuous_path = os.path.join(PROCESSED_DATA_DIR, "vla_continuous.jsonl")
-    discrete_path = os.path.join(PROCESSED_DATA_DIR, "vla_discrete.jsonl")
+    discrete_path = os.path.join(PROCESSED_DATA_DIR, f"vla_discrete_{n_clusters}.jsonl")
     
     has_quantizer = os.path.exists(quantizer_path)
     has_dataset = os.path.exists(dataset_path)
     has_vla_continuous = os.path.exists(continuous_path)
     has_vla_discrete = os.path.exists(discrete_path)
     
-    # ポーズトークンの頻度集計
     pose_distribution = []
     num_frames = 0
     num_clusters = 0
     
     if has_quantizer and has_dataset:
         try:
-            # データをロードしてトークン化
             df = pd.read_csv(dataset_path)
             feature_cols = [col for col in df.columns if col not in ['timestamp', 'label']]
             X = df[feature_cols].values
@@ -735,11 +833,9 @@ def get_vla_stats():
             
             tokens = quantizer.tokenize(X)
             
-            # 各トークンの個数を集計
             unique, counts = np.unique(tokens, return_counts=True)
             dist_map = dict(zip(unique.tolist(), counts.tolist()))
             
-            # 全クラスタIDに対する分布リストを作成
             for i in range(num_clusters):
                 pose_distribution.append({
                     "token_id": i,
@@ -760,6 +856,4 @@ def get_vla_stats():
 
 if __name__ == "__main__":
     import uvicorn
-
-    # uvicorn dashboard:app --host 0.0.0.0 --port 8000 --reload
     uvicorn.run(app, host="0.0.0.0", port=8000)

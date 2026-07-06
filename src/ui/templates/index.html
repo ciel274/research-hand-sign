@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>手話指文字データ収集 &amp; 学習ダッシュボード</title>
+    <title>手話データ収集 &amp; VLA学習ダッシュボード (研究モデル比較版)</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         /* ===== Theme Variables ===== */
@@ -123,6 +123,31 @@
             gap: 1rem;
         }
 
+        /* Shortcuts Bar */
+        .shortcuts-bar {
+            display: flex;
+            gap: 0.8rem;
+            align-items: center;
+        }
+
+        .shortcut-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        kbd {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 0.65rem;
+            font-family: 'SF Mono', 'Menlo', monospace;
+            color: var(--text-secondary);
+        }
+
         /* Theme Toggle */
         .theme-toggle {
             display: flex;
@@ -148,52 +173,101 @@
             font-size: 1rem;
             background: transparent;
             transition: all var(--transition-speed);
-            color: var(--text-muted);
         }
 
         .theme-toggle-btn.active {
+            background: var(--bg-secondary);
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+
+        /* ===== Tabs Navigation ===== */
+        .tabs-container {
+            max-width: 1280px;
+            margin: 1rem auto 0 auto;
+            padding: 0 2rem;
+        }
+
+        .tab-menu {
+            display: flex;
+            gap: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            padding: 6px;
+            border-radius: 12px;
+            width: fit-content;
+            box-shadow: 0 4px 20px var(--shadow-color);
+        }
+
+        .tab-btn {
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: var(--bg-card-hover);
+        }
+
+        .tab-btn.active {
             background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-            color: white;
-            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
         }
 
-        /* ===== Layout ===== */
+        /* ===== Layout Container ===== */
         .container {
-            display: grid;
-            grid-template-columns: 1fr 1.5fr; /* 50音グリッドをコンパクトにし、右側のカメラエリアを大幅に拡大 */
-            gap: 1.5rem;
-            padding: 1.5rem;
-            max-width: 1600px;
+            max-width: 1280px;
             margin: 0 auto;
+            padding: 1.5rem 2rem;
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 1.5rem;
         }
 
-        @media (max-width: 1100px) {
-            .container { grid-template-columns: 1fr; }
-            .right-column { position: static !important; max-height: none !important; }
+        .tab-panel {
+            display: none;
         }
 
-        /* ===== Panel ===== */
+        .tab-panel.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== Panel / Card Styles ===== */
         .panel {
-            background: var(--bg-card);
+            background: var(--bg-secondary);
             border: 1px solid var(--border-color);
             border-radius: 16px;
-            padding: 1.4rem;
-            backdrop-filter: blur(12px);
+            padding: 1.5rem;
             box-shadow: 0 4px 24px var(--shadow-color);
-            transition: all var(--transition-speed);
+            backdrop-filter: blur(12px);
+            margin-bottom: 1.2rem;
         }
 
         .panel-title {
             font-family: 'Outfit', sans-serif;
-            font-size: 1.05rem;
-            font-weight: 600;
+            font-size: 1.15rem;
+            font-weight: 700;
             margin-bottom: 1rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
             color: var(--text-primary);
-            border-left: 3px solid var(--accent-1);
-            padding-left: 10px;
         }
 
         .panel-subtitle {
@@ -202,7 +276,7 @@
             color: var(--text-muted);
         }
 
-        /* ===== Progress Summary ===== */
+        /* ===== Progress Bar ===== */
         .progress-bar-container {
             margin-bottom: 1.2rem;
             padding: 0.8rem 1rem;
@@ -234,7 +308,7 @@
             transition: width 0.5s ease;
         }
 
-        /* ===== 50音グリッド ===== */
+        /* ===== 50音グリッド & 単語グリッド ===== */
         .char-grid {
             display: grid;
             grid-template-columns: 45px repeat(5, 1fr);
@@ -329,27 +403,71 @@
             color: #ffffff;
         }
 
+        /* ===== Custom Words Grid (Tab 2) ===== */
+        .words-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+            gap: 8px;
+            max-height: 380px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 1.2rem;
+            background: var(--bg-input);
+            padding: 0.8rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .form-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-group label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .input-field {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.4rem 0.6rem;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-field:focus {
+            border-color: var(--accent-1);
+        }
+
         /* ===== Right Column ===== */
         .right-column {
             display: flex;
             flex-direction: column;
             gap: 1rem;
             position: sticky;
-            top: 70px;
+            top: 90px;
             align-self: flex-start;
-            max-height: calc(100vh - 90px);
+            max-height: calc(100vh - 120px);
             overflow-y: auto;
         }
 
         .right-column::-webkit-scrollbar {
             width: 4px;
         }
-        .right-column::-webkit-scrollbar-thumb {
-            background: var(--border-color);
-            border-radius: 2px;
-        }
 
-        /* ===== Camera ===== */
+        /* ===== Camera Wrapper ===== */
         .camera-wrapper {
             position: relative;
             width: 100%;
@@ -417,7 +535,6 @@
             50% { opacity: 1; }
         }
 
-        /* ===== Selected Info ===== */
         .selected-info {
             display: flex;
             justify-content: space-between;
@@ -432,7 +549,7 @@
             font-size: 1.1rem;
         }
 
-        /* ===== Buttons ===== */
+        /* ===== Buttons & Controls ===== */
         .controls {
             display: flex;
             gap: 0.5rem;
@@ -496,7 +613,7 @@
             background: rgba(239, 68, 68, 0.1);
         }
 
-        /* ===== Inference / Text ===== */
+        /* ===== Inference Display ===== */
         .inference-display {
             display: flex;
             justify-content: space-between;
@@ -509,8 +626,9 @@
         }
 
         .inference-char {
-            font-size: 2rem;
+            font-size: 1.8rem;
             font-weight: 800;
+            color: var(--accent-1);
         }
 
         .text-output-panel {
@@ -518,7 +636,7 @@
             border-radius: 10px;
             padding: 1rem;
             min-height: 60px;
-            font-size: 1.2rem;
+            font-size: 1.15rem;
             font-weight: 600;
             letter-spacing: 1px;
             border: 1px solid var(--border-color);
@@ -526,7 +644,7 @@
             color: var(--text-primary);
         }
 
-        /* ===== Training Log ===== */
+        /* ===== Logs ===== */
         .training-results {
             margin-top: 0.6rem;
             padding: 0.8rem;
@@ -534,43 +652,114 @@
             border-radius: 8px;
             font-family: 'SF Mono', 'Menlo', monospace;
             font-size: 0.75rem;
-            max-height: 140px;
+            max-height: 120px;
             overflow-y: auto;
             border: 1px solid var(--border-color);
             color: var(--log-text);
             line-height: 1.5;
         }
 
-        /* ===== Keyboard Shortcuts ===== */
-        .shortcuts-bar {
-            display: flex;
-            gap: 1rem;
-            padding: 0.5rem 0;
-            flex-wrap: wrap;
-        }
-
-        .shortcut-item {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 0.7rem;
-            color: var(--text-muted);
-        }
-
-        kbd {
+        /* ===== Sliders (Tab 3) ===== */
+        .settings-group {
             background: var(--bg-input);
             border: 1px solid var(--border-color);
+            padding: 1.2rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+        }
+
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .settings-label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .settings-val {
+            font-family: monospace;
+            font-size: 0.95rem;
+            font-weight: bold;
+            color: var(--accent-1);
+        }
+
+        .range-slider {
+            width: 100%;
+            height: 6px;
+            background: var(--border-color);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+            accent-color: var(--accent-1);
+        }
+
+        .settings-desc {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        /* Speed Indicator Bar */
+        .speed-indicator-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
             border-radius: 4px;
-            padding: 1px 6px;
-            font-size: 0.65rem;
-            font-family: 'SF Mono', 'Menlo', monospace;
+            position: relative;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        .speed-indicator-fill {
+            height: 100%;
+            background: var(--accent-1);
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+
+        .speed-indicator-limit {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--danger);
+        }
+
+        /* ===== Academic Table (Tab 3) ===== */
+        .academic-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+            margin-top: 0.8rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .academic-table th, .academic-table td {
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            text-align: left;
+        }
+
+        .academic-table th {
+            background: var(--bg-input);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .academic-table td {
             color: var(--text-secondary);
         }
 
         /* ===== Toast ===== */
         .toast-container {
             position: fixed;
-            top: 70px;
+            top: 75px;
             right: 20px;
             z-index: 9999;
             display: flex;
@@ -598,12 +787,7 @@
         .toast-message.toast-error { border-left-color: var(--danger); }
         .toast-message.toast-success { border-left-color: var(--success); }
 
-        /* ===== Scrollbar ===== */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
-
-        /* ===== VLA Panel Styles ===== */
+        /* ===== VLA Panel ===== */
         .vla-preview-box {
             margin-top: 0.6rem;
             padding: 0.6rem;
@@ -637,19 +821,13 @@
     </style>
 </head>
 <body>
-    <!-- トースト通知 -->
     <div class="toast-container" id="toastContainer"></div>
 
     <header>
         <div class="header-left">
-            <h1>📝 手話指文字</h1>
+            <h1>📝 手話指文字データ収集 &amp; VLA学習システム</h1>
         </div>
         <div class="header-right">
-            <div class="shortcuts-bar">
-                <div class="shortcut-item"><kbd>↑↓←→</kbd> 移動</div>
-                <div class="shortcut-item"><kbd>Space</kbd> 録画</div>
-                <div class="shortcut-item"><kbd>D</kbd> 削除</div>
-            </div>
             <div class="theme-toggle" id="themeToggle">
                 <button class="theme-toggle-btn active" id="btnDark" title="ダークモード">🌙</button>
                 <button class="theme-toggle-btn" id="btnLight" title="ライトモード">☀️</button>
@@ -657,46 +835,174 @@
         </div>
     </header>
 
+    <!-- タブメニューナビゲーション -->
+    <div class="tabs-container">
+        <div class="tab-menu">
+            <button class="tab-btn active" id="tabBtnHiragana" onclick="switchTab('hiragana')">
+                🖐️ ひらがな（50音指文字）
+            </button>
+            <button class="tab-btn" id="tabBtnWords" onclick="switchTab('words')">
+                🤝 手話単語（動的アクション）
+            </button>
+            <button class="tab-btn" id="tabBtnSettings" onclick="switchTab('settings')">
+                ⚙️ 研究パラメータ・手法比較
+            </button>
+        </div>
+    </div>
+
     <div class="container">
-        <!-- 左カラム：50音グリッドと文字起こし出力 -->
+        <!-- 左カラム：タブに応じたコンテンツパネル -->
         <div>
-            <div class="panel">
-                <div class="panel-title">
-                    <span>50音データ収集</span>
-                    <span class="panel-subtitle" id="totalCountLabel">全 0 件</span>
-                </div>
-
-                <!-- 進捗バー -->
-                <div class="progress-bar-container">
-                    <div class="progress-header">
-                        <span style="color: var(--text-secondary); font-weight: 500;">収集進捗</span>
-                        <span id="progressLabel" style="color: var(--accent-1); font-weight: 600;">0 / 46 文字</span>
+            <!-- タブ1: ひらがなグリッド -->
+            <div id="panelHiragana" class="tab-panel active">
+                <div class="panel">
+                    <div class="panel-title">
+                        <span>50音指文字データ収集</span>
+                        <span class="panel-subtitle" id="hiraganaTotalLabel">全 0 件</span>
                     </div>
-                    <div class="progress-track">
-                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-                    </div>
-                </div>
 
-                <div class="char-grid" id="charGrid">
-                    <!-- JavaScriptで動的生成 -->
+                    <div class="progress-bar-container">
+                        <div class="progress-header">
+                            <span style="color: var(--text-secondary); font-weight: 500;">ひらがな収集進捗</span>
+                            <span id="progressLabel" style="color: var(--accent-1); font-weight: 600;">0 / 46 文字</span>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="char-grid" id="charGrid">
+                        <!-- JavaScriptで動的生成 -->
+                    </div>
                 </div>
             </div>
 
-            <!-- 推論テキスト表示 (左下) -->
-            <div class="panel" style="margin-top: 1rem;">
-                <div class="panel-title">文字起こし出力</div>
+            <!-- タブ2: 手話単語マネージャー -->
+            <div id="panelWords" class="tab-panel">
+                <div class="panel">
+                    <div class="panel-title">
+                        <span>両手用手話単語の登録・収集</span>
+                        <span class="panel-subtitle" id="wordsTotalLabel">登録単語数: 0</span>
+                    </div>
+
+                    <!-- 単語追加フォーム -->
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 1.2;">
+                            <label>ひらがな・日本語表記</label>
+                            <input type="text" class="input-field" id="newWordKana" placeholder="例: りんご">
+                        </div>
+                        <div class="form-group">
+                            <label>ローマ字ID (英小文字)</label>
+                            <input type="text" class="input-field" id="newWordRomaji" placeholder="例: ringo">
+                        </div>
+                        <button class="btn btn-primary" onclick="addCustomWord()" style="align-self: flex-end; padding: 0.55rem 1rem; border-radius: 6px; flex: 0.4;">
+                            ➕ 追加
+                        </button>
+                    </div>
+
+                    <!-- 登録済み単語グリッド -->
+                    <div class="words-grid" id="wordsGrid">
+                        <!-- JavaScriptで動的生成 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- タブ3: 研究パラメータ設定 -->
+            <div id="panelSettings" class="tab-panel">
+                <!-- パラメータ調整 -->
+                <div class="panel">
+                    <div class="panel-title">研究実験パラメータの調整</div>
+                    
+                    <!-- K-Means クラスタ数 -->
+                    <div class="settings-group">
+                        <div class="settings-header">
+                            <span class="settings-label">1. K-Means クラスタ数 ($K$) (離散化解像度)</span>
+                            <span class="settings-val" id="valK">64</span>
+                        </div>
+                        <input type="range" class="range-slider" id="sliderK" min="16" max="256" step="16" value="64" oninput="updateKVal(this.value)">
+                        <div class="settings-desc">
+                            126次元の手のポーズ座標を代表ポーズIDに圧縮する際のクラスタ数です。小さい値は圧縮率を高めますがポーズが潰れ、大きい値はポーズの正確性を保ちますが学習負荷が上がります。（卒論におけるKの依存性実験に利用）
+                        </div>
+                    </div>
+
+                    <!-- 静止入力感度しきい値 -->
+                    <div class="settings-group">
+                        <div class="settings-header">
+                            <span class="settings-label">2. リアルタイム文字起こしの静止判定しきい値</span>
+                            <span class="settings-val" id="valThreshold">0.008</span>
+                        </div>
+                        <input type="range" class="range-slider" id="sliderThreshold" min="0.003" max="0.020" step="0.001" value="0.008" oninput="updateThresholdVal(this.value)">
+                        <div class="settings-desc">
+                            手の骨格位置の移動速度（フレーム差）がこの値を下回ると、手が静止したとみなしてSVMがテキストを文字入力します。値を大きくするとブレても反応しやすくなり、小さくするとしっかりと手を止めないと入力されません。
+                        </div>
+                        <div style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 10px; display: flex; justify-content: space-between;">
+                            <span>現在の手の移動速度 (秒間移動量):</span>
+                            <span id="liveVelocityDisplay">0.000</span>
+                        </div>
+                        <div class="speed-indicator-bar">
+                            <div class="speed-indicator-fill" id="speedIndicatorFill"></div>
+                            <div class="speed-indicator-limit" id="speedIndicatorLimit" style="left: 40%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 手法比較テーブル -->
+                <div class="panel">
+                    <div class="panel-title">手話アクションモデル・アプローチ比較</div>
+                    <table class="academic-table">
+                        <thead>
+                            <tr>
+                                <th>比較項目</th>
+                                <th>静的分類 (SVMベース)</th>
+                                <th>動作生成 (VLA LoRAベース)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>**制御対象**</td>
+                                <td>50音指文字（片手中心・静的ポーズ）</td>
+                                <td>指文字・両手手話単語（動的アクション）</td>
+                            </tr>
+                            <tr>
+                                <td>**入力フォーマット**</td>
+                                <td>1フレームの幾何正規化座標(126次元)</td>
+                                <td>テキストプロンプト (指示文)</td>
+                            </tr>
+                            <tr>
+                                <td>**出力フォーマット**</td>
+                                <td>テキストラベルの判定結果 (文字・単語)</td>
+                                <td>126次元時系列座標トークン (動きの生成)</td>
+                            </tr>
+                            <tr>
+                                <td>**時間的制約**</td>
+                                <td>静止判定(Velocity &lt; threshold)が必要</td>
+                                <td>時系列シーケンス生成により流れる動作が可能</td>
+                            </tr>
+                            <tr>
+                                <td>**新規性と展望**</td>
+                                <td>頑健な入力UIとしての高い完成度</td>
+                                <td>LLMの指示文脈に応じた条件付き両手動作生成</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 文字起こし出力パネル (左下固定) -->
+            <div class="panel">
+                <div class="panel-title">文字起こし出力領域</div>
                 <div class="text-output-panel" id="textOutput">
                     (文字はここに表示されます)
                 </div>
                 <div class="inference-display">
                     <div>
-                        <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">予測</div>
+                        <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">予測結果</div>
                         <div class="inference-char" id="predChar">--</div>
                     </div>
                     <div style="text-align: right;">
-                        <div style="font-size: 0.65rem; color: var(--text-muted);">信頼度</div>
-                        <div style="font-weight: bold; color: var(--success); font-size: 1rem;" id="predConf">0.0%</div>
-                        <div id="stabilityBadge" style="font-size: 0.6rem; color: var(--text-muted); margin-top: 2px;">MOVING</div>
+                        <div style="font-size: 0.65rem; color: var(--text-muted);">確率・信頼度</div>
+                        <div style="font-weight: bold; color: var(--success); font-size: 1.1rem;" id="predConf">0.0%</div>
+                        <div id="stabilityBadge" style="font-size: 0.65rem; font-weight: bold; color: var(--text-muted); margin-top: 2px;">MOVING</div>
                     </div>
                 </div>
             </div>
@@ -706,15 +1012,16 @@
         <div class="right-column">
             <!-- カメラモニター -->
             <div class="panel">
-                <div class="panel-title">カメラ</div>
+                <div class="panel-title">カメラフィード</div>
                 <div class="camera-wrapper" id="cameraWrapper">
                     <img src="/video_feed" class="camera-feed" id="cameraFeed" alt="Camera Feed"
                          onerror="this.classList.add('error'); document.getElementById('cameraPlaceholder').style.display='flex';"
                          onload="this.classList.remove('error'); document.getElementById('cameraPlaceholder').style.display='none';">
                     <div class="camera-placeholder" id="cameraPlaceholder" style="display: none;">
-                        <span class="icon">📷</span>
-                        <span>カメラに接続中…</span>
-                        <button class="btn btn-secondary" style="padding: 4px 12px; font-size: 0.75rem; flex: 0;" onclick="reloadCamera()">再接続</button>
+                        <span class="icon" id="cameraPlaceholderIcon">📷</span>
+                        <span id="cameraPlaceholderText">カメラに接続中…</span>
+                        <button class="btn btn-primary" id="btnResumeCenter" style="padding: 6px 16px; font-size: 0.8rem; flex: 0; margin-top: 8px; display: none;" onclick="toggleCameraActive()">▶ カメラを再開</button>
+                        <button class="btn btn-secondary" id="btnReconnectCenter" style="padding: 4px 12px; font-size: 0.75rem; flex: 0;" onclick="reloadCamera()">再接続</button>
                     </div>
                     <div class="record-overlay" id="recordOverlay">
                         <span class="rec-dot"></span>
@@ -732,12 +1039,13 @@
                     <button class="btn btn-secondary" id="btnDeleteLast" disabled style="flex: 0.6; font-size: 0.8rem;">↩ 元に戻す</button>
                 </div>
                 <div class="controls" style="margin-top: 0.4rem;">
-                    <button class="btn btn-secondary" id="btnClearText" style="font-size: 0.8rem;">テキストクリア</button>
-                    <button class="btn btn-outline-danger" id="btnClearClass" disabled style="flex: 0.7;">全削除</button>
+                    <button class="btn btn-secondary" id="btnToggleCamera" style="font-size: 0.8rem;" onclick="toggleCameraActive()">⏸ カメラ一時停止</button>
+                    <button class="btn btn-secondary" id="btnClearText" style="font-size: 0.8rem; flex: 0.6;">クリア</button>
+                    <button class="btn btn-outline-danger" id="btnClearClass" disabled style="flex: 0.6;">全削除</button>
                 </div>
             </div>
 
-            <!-- 学習管理パネル (右下) -->
+            <!-- 学習管理パネル -->
             <div class="panel">
                 <div class="panel-title">モデル学習管理</div>
                 <div style="display: flex; gap: 0.5rem;">
@@ -749,23 +1057,22 @@
                 </div>
             </div>
 
-            <!-- VLAモデル連携 & アクション離散化パネル (最右下) -->
+            <!-- VLAモデル連携 -->
             <div class="panel">
                 <div class="panel-title">
                     <span>VLAモデル連携 &amp; 離散化</span>
-                    <span class="panel-subtitle">アプローチA・B用</span>
+                    <span class="panel-subtitle" id="vlaTargetK">クラスタ数 K=64</span>
                 </div>
                 
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 0.8rem;">
-                    <button class="btn btn-secondary" id="btnQuantize" style="font-size: 0.8rem;" title="126次元の座標をポーズトークンに分類するK-Meansモデルを学習">
+                    <button class="btn btn-secondary" id="btnQuantize" style="font-size: 0.8rem;" onclick="runQuantize()">
                         💠 アクション離散化
                     </button>
-                    <button class="btn btn-primary" id="btnExportVLA" style="font-size: 0.8rem;" title="Hugging Face互換のVLAトレーニングデータ(JSONL)を書き出し">
+                    <button class="btn btn-primary" id="btnExportVLA" style="font-size: 0.8rem;" onclick="runExportVLA()">
                         📤 VLAデータ出力
                     </button>
                 </div>
 
-                <!-- ステータスインジケータ -->
                 <div style="font-size: 0.75rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px; padding: 6px; background: var(--bg-input); border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between;">
                         <span>離散化モデル:</span>
@@ -777,477 +1084,828 @@
                     </div>
                 </div>
 
-                <!-- ポーズ分布グラフ (Canvas) -->
                 <div class="chart-container" id="poseChartContainer" style="display: none;">
                     <div class="chart-title">出現ポーズトークンの分布 (多様性の視覚化)</div>
-                    <canvas id="poseChart" width="300" height="90" style="width: 100%; height: 90px;"></canvas>
+                    <canvas id="poseChart" width="300" height="80" style="width: 100%; height: 80px;"></canvas>
                 </div>
 
-                <!-- 出力データプレビュー -->
-                <div id="vlaPreviewTitle" style="font-size: 0.75rem; font-weight: 600; margin-top: 0.8rem; color: var(--text-secondary); display: none;">出力データのサンプルプレビュー:</div>
-                <div class="vla-preview-box" id="vlaPreview" style="display: none;">
-                    (データを出力するとここにVLAのトレーニング用JSONLプレビューが表示されます)
-                </div>
+                <div id="vlaPreviewTitle" style="font-size: 0.75rem; font-weight: 600; margin-top: 0.8rem; color: var(--text-secondary); display: none;">出力データプレビュー:</div>
+                <div class="vla-preview-box" id="vlaPreview" style="display: none;"></div>
             </div>
         </div>
     </div>
 
     <script>
-        // ===== Theme Toggle =====
-        function setTheme(theme) {
-            document.documentElement.setAttribute('data-theme', theme);
-            localStorage.setItem('theme', theme);
-            document.getElementById('btnDark').classList.toggle('active', theme === 'dark');
-            document.getElementById('btnLight').classList.toggle('active', theme === 'light');
-        }
+        // ===== グローバル状態管理 =====
+        let currentMode = "hiragana"; // "hiragana" または "words"
+        let activeLabel = null;
+        let selectedElement = null;
+        let fileCounts = {};
+        let customWords = {};
+        
+        let recordInterval = null;
+        let recordStartTime = 0;
 
-        document.getElementById('btnDark').onclick = () => setTheme('dark');
-        document.getElementById('btnLight').onclick = () => setTheme('light');
+        // K-Means クラスタ数 と しきい値
+        let currentKValue = 64;
+        let velocityLimit = 0.008;
 
-        // 起動時にlocalStorageから読み込み
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        setTheme(savedTheme);
+        const ROMAJI_TO_KANA = {
+            "a": "あ", "i": "い", "u": "う", "e": "え", "o": "お",
+            "ka": "か", "ki": "き", "ku": "く", "ke": "け", "ko": "こ",
+            "sa": "さ", "si": "し", "su": "す", "se": "せ", "so": "そ",
+            "ta": "た", "ti": "ち", "tu": "つ", "te": "て", "to": "と",
+            "na": "な", "ni": "に", "nu": "ぬ", "ne": "ね", "no": "の",
+            "ha": "は", "hi": "ひ", "hu": "ふ", "he": "へ", "ho": "ほ",
+            "ma": "ま", "mi": "み", "mu": "む", "me": "め", "mo": "も",
+            "ya": "や", "yu": "ゆ", "yo": "よ",
+            "ra": "ら", "ri": "り", "ru": "る", "re": "れ", "ro": "ろ",
+            "wa": "わ", "wo": "を", "nn": "ん"
+        };
 
-        // ===== Camera Reconnect =====
-        function reloadCamera() {
-            const feed = document.getElementById('cameraFeed');
-            feed.src = '/video_feed?' + Date.now();
-        }
-
-        // ===== 50音データ定義 =====
-        const rows = [
-            { name: 'あ行', chars: [{ ja: 'あ', ro: 'a' }, { ja: 'い', ro: 'i' }, { ja: 'う', ro: 'u' }, { ja: 'え', ro: 'e' }, { ja: 'お', ro: 'o' }] },
-            { name: 'か行', chars: [{ ja: 'か', ro: 'ka' }, { ja: 'き', ro: 'ki' }, { ja: 'く', ro: 'ku' }, { ja: 'け', ro: 'ke' }, { ja: 'こ', ro: 'ko' }] },
-            { name: 'さ行', chars: [{ ja: 'さ', ro: 'sa' }, { ja: 'し', ro: 'si' }, { ja: 'す', ro: 'su' }, { ja: 'せ', ro: 'se' }, { ja: 'そ', ro: 'so' }] },
-            { name: 'た行', chars: [{ ja: 'た', ro: 'ta' }, { ja: 'ち', ro: 'ti' }, { ja: 'つ', ro: 'tu' }, { ja: 'て', ro: 'te' }, { ja: 'と', ro: 'to' }] },
-            { name: 'な行', chars: [{ ja: 'な', ro: 'na' }, { ja: 'に', ro: 'ni' }, { ja: 'ぬ', ro: 'nu' }, { ja: 'ね', ro: 'ne' }, { ja: 'の', ro: 'no' }] },
-            { name: 'は行', chars: [{ ja: 'は', ro: 'ha' }, { ja: 'ひ', ro: 'hi' }, { ja: 'ふ', ro: 'hu' }, { ja: 'へ', ro: 'he' }, { ja: 'ほ', ro: 'ho' }] },
-            { name: 'ま行', chars: [{ ja: 'ま', ro: 'ma' }, { ja: 'み', ro: 'mi' }, { ja: 'む', ro: 'mu' }, { ja: 'め', ro: 'me' }, { ja: 'も', ro: 'mo' }] },
-            { name: 'や行', chars: [{ ja: 'や', ro: 'ya' }, { ja: '', ro: '' },    { ja: 'ゆ', ro: 'yu' }, { ja: '', ro: '' },    { ja: 'よ', ro: 'yo' }] },
-            { name: 'ら行', chars: [{ ja: 'ら', ro: 'ra' }, { ja: 'り', ro: 'ri' }, { ja: 'る', ro: 'ru' }, { ja: 'れ', ro: 're' }, { ja: 'ろ', ro: 'ro' }] },
-            { name: 'わ行', chars: [{ ja: 'わ', ro: 'wa' }, { ja: '', ro: '' },    { ja: 'を', ro: 'wo' }, { ja: '', ro: '' },    { ja: 'ん', ro: 'nn' }] }
-        ];
-
-        const TOTAL_CHARS = 46; // 実際の有効な文字数
-        let selectedRow = 0, selectedCol = 0, selectedChar = null, isRecording = false;
-        let timerInterval = null, recordStartTime = 0;
-
-        // ===== Toast通知 =====
-        function showToast(message, type = "success") {
-            const container = document.getElementById('toastContainer');
-            const toast = document.createElement('div');
-            toast.className = `toast-message toast-${type}`;
-            toast.innerText = message;
-            container.appendChild(toast);
-            setTimeout(() => toast.classList.add('show'), 10);
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => toast.remove(), 300);
-            }, 2500);
-        }
-
-        // ===== Timer =====
-        function updateTimer() {
-            const elapsed = (Date.now() - recordStartTime) / 1000;
-            document.getElementById('recordTimer').innerText = `${elapsed.toFixed(1)}s`;
-        }
-
-        // ===== グリッド生成 =====
-        const grid = document.getElementById('charGrid');
-
-        // ヘッダー行
-        ['行＼段', 'あ', 'い', 'う', 'え', 'お'].forEach(h => {
-            const hDiv = document.createElement('div');
-            hDiv.className = 'grid-header';
-            hDiv.innerText = h;
-            grid.appendChild(hDiv);
+        // ===== 初期化 =====
+        window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            generate50OnGrid();
+            loadCustomWords();
+            updateCounts();
+            startStatusPolling();
+            setupKeyboardShortcuts();
+            
+            // UIイベントリスナー
+            document.getElementById('btnRecord').addEventListener('click', toggleRecording);
+            document.getElementById('btnDeleteLast').addEventListener('click', deleteLastRecord);
+            document.getElementById('btnClearText').addEventListener('click', clearText);
+            document.getElementById('btnClearClass').addEventListener('click', clearClassRecords);
+            document.getElementById('btnPreprocess').addEventListener('click', preprocessData);
+            document.getElementById('btnTrain').addEventListener('click', trainSVM);
+            document.getElementById('themeToggle').addEventListener('click', toggleTheme);
         });
 
-        // 各行を生成
-        rows.forEach((row, rIdx) => {
-            const labelDiv = document.createElement('div');
-            labelDiv.className = 'row-label';
-            labelDiv.innerText = row.name;
-            grid.appendChild(labelDiv);
+        // ===== テーマ切替 =====
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.getElementById('btnDark').classList.toggle('active', savedTheme === 'dark');
+            document.getElementById('btnLight').classList.toggle('active', savedTheme === 'light');
+        }
 
-            row.chars.forEach((char, cIdx) => {
-                if (char.ja === '') {
-                    const empty = document.createElement('div');
-                    empty.style.visibility = 'hidden';
-                    grid.appendChild(empty);
-                    return;
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const target = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', target);
+            localStorage.setItem('theme', target);
+            document.getElementById('btnDark').classList.toggle('active', target === 'dark');
+            document.getElementById('btnLight').classList.toggle('active', target === 'light');
+            showToast(`テーマを ${target === 'dark' ? 'ダーク' : 'ライト'} に切り替えました`, "success");
+        }
+
+        // ===== タブ切り替え =====
+        async function switchTab(mode) {
+            currentMode = mode === "settings" ? currentMode : mode;
+            
+            // タブボタンのアクティブ化
+            document.getElementById('tabBtnHiragana').classList.toggle('active', mode === 'hiragana');
+            document.getElementById('tabBtnWords').classList.toggle('active', mode === 'words');
+            document.getElementById('tabBtnSettings').classList.toggle('active', mode === 'settings');
+
+            // パネルの表示非表示
+            document.getElementById('panelHiragana').classList.toggle('active', mode === 'hiragana');
+            document.getElementById('panelWords').classList.toggle('active', mode === 'words');
+            document.getElementById('panelSettings').classList.toggle('active', mode === 'settings');
+
+            if (mode !== "settings") {
+                // バックエンドの動作モードを切り替え
+                try {
+                    const response = await fetch(`/api/mode/${mode}`, { method: 'POST' });
+                    const res = await response.json();
+                    if (res.status === 'success') {
+                        showToast(`モードを [${mode === 'hiragana' ? '50音指文字' : '両手単語'}] に変更しました`, "success");
+                        deselectAll();
+                        updateCounts();
+                        updateVLAStatus();
+                    }
+                } catch (e) {
+                    console.error("モード切り替えエラー:", e);
+                }
+            }
+        }
+
+        // ===== 50音グリッド生成 =====
+        function generate50OnGrid() {
+            const grid = document.getElementById('charGrid');
+            grid.innerHTML = "";
+            
+            const columns = ["a", "i", "u", "e", "o"];
+            const rows = [
+                { label: "ア行", keys: ["a", "i", "u", "e", "o"] },
+                { label: "カ行", keys: ["ka", "ki", "ku", "ke", "ko"] },
+                { label: "サ行", keys: ["sa", "si", "su", "se", "so"] },
+                { label: "タ行", keys: ["ta", "ti", "tu", "te", "to"] },
+                { label: "ナ行", keys: ["na", "ni", "nu", "ne", "no"] },
+                { label: "ハ行", keys: ["ha", "hi", "hu", "he", "ho"] },
+                { label: "マ行", keys: ["ma", "mi", "mu", "me", "mo"] },
+                { label: "ヤ行", keys: ["ya", null, "yu", null, "yo"] },
+                { label: "ラ行", keys: ["ra", "ri", "ru", "re", "ro"] },
+                { label: "ワ行", keys: ["wa", null, "wo", null, "nn"] }
+            ];
+
+            // ヘッダー行
+            grid.appendChild(document.createElement('div')); // 空の左上
+            columns.forEach(col => {
+                const head = document.createElement('div');
+                head.className = "grid-header";
+                head.innerText = col.toUpperCase();
+                grid.appendChild(head);
+            });
+
+            // 各行のカード配置
+            rows.forEach(row => {
+                const labelDiv = document.createElement('div');
+                labelDiv.className = "row-label";
+                labelDiv.innerText = row.label;
+                grid.appendChild(labelDiv);
+
+                row.keys.forEach(key => {
+                    if (key === null) {
+                        const empty = document.createElement('div');
+                        grid.appendChild(empty);
+                        return;
+                    }
+
+                    const card = document.createElement('div');
+                    card.className = "char-card";
+                    card.id = `card-${key}`;
+                    card.setAttribute('data-romaji', key);
+                    card.onclick = () => selectLabel(key, card);
+
+                    const kanaSpan = document.createElement('span');
+                    kanaSpan.className = "japanese";
+                    kanaSpan.innerText = ROMAJI_TO_KANA[key];
+
+                    const romajiSpan = document.createElement('span');
+                    romajiSpan.className = "romaji";
+                    romajiSpan.innerText = key;
+
+                    const badge = document.createElement('span');
+                    badge.className = "count-badge";
+                    badge.id = `badge-${key}`;
+                    badge.innerText = "0";
+
+                    card.appendChild(kanaSpan);
+                    card.appendChild(romajiSpan);
+                    card.appendChild(badge);
+                    grid.appendChild(card);
+                });
+            });
+        }
+
+        // ===== カスタム単語のロード =====
+        async function loadCustomWords() {
+            try {
+                const response = await fetch('/api/words');
+                customWords = await response.json();
+                renderCustomWordsGrid();
+            } catch (e) {
+                console.error("単語リスト取得エラー:", e);
+            }
+        }
+
+        function renderCustomWordsGrid() {
+            const grid = document.getElementById('wordsGrid');
+            grid.innerHTML = "";
+            
+            const keys = Object.keys(customWords);
+            document.getElementById('wordsTotalLabel').innerText = `登録単語数: ${keys.length}`;
+
+            if (keys.length === 0) {
+                grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 2rem;">登録された手話単語はありません</div>`;
+                return;
+            }
+
+            keys.forEach(key => {
+                const card = document.createElement('div');
+                card.className = "char-card";
+                card.id = `card-word-${key}`;
+                card.onclick = () => selectLabel(key, card);
+
+                const kanaSpan = document.createElement('span');
+                kanaSpan.className = "japanese";
+                kanaSpan.innerText = customWords[key];
+                
+                // 長い文字幅への調整
+                if (customWords[key].length > 4) {
+                    kanaSpan.style.fontSize = "0.95rem";
                 }
 
-                const card = document.createElement('div');
-                card.className = 'char-card';
-                card.dataset.romaji = char.ro;
-                card.innerHTML = `
-                    <span class="count-badge" id="badge-${char.ro}">0</span>
-                    <span class="japanese">${char.ja}</span>
-                    <span class="romaji">${char.ro}</span>
-                `;
-                card.onclick = () => {
-                    selectedRow = rIdx;
-                    selectedCol = cIdx;
-                    selectCharacter(char);
+                const romajiSpan = document.createElement('span');
+                romajiSpan.className = "romaji";
+                romajiSpan.innerText = key;
+
+                const badge = document.createElement('span');
+                badge.className = "count-badge";
+                badge.id = `badge-word-${key}`;
+                badge.innerText = "0";
+
+                // ホバー時に削除できるボタンをひっそり配置
+                const delBtn = document.createElement('div');
+                delBtn.innerText = "×";
+                delBtn.style.cssText = "position: absolute; bottom: 2px; right: 4px; font-size: 0.75rem; color: var(--danger); font-weight: bold; cursor: pointer; display: none;";
+                delBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteCustomWord(key);
                 };
+                card.appendChild(delBtn);
+                card.onmouseover = () => { delBtn.style.display = "block"; };
+                card.onmouseout = () => { delBtn.style.display = "none"; };
+
+                card.appendChild(kanaSpan);
+                card.appendChild(romajiSpan);
+                card.appendChild(badge);
                 grid.appendChild(card);
             });
-        });
-
-        // ===== 収録数カウントと進捗更新 =====
-        function updateCounts() {
-            fetch('/api/counts')
-                .then(res => res.json())
-                .then(data => {
-                    let total = 0;
-                    let charsWithData = 0;
-
-                    Object.keys(data).forEach(ro => {
-                        const badge = document.getElementById(`badge-${ro}`);
-                        if (badge) {
-                            badge.innerText = data[ro];
-                            if (data[ro] > 0) {
-                                badge.classList.add('has-data');
-                                charsWithData++;
-                            } else {
-                                badge.classList.remove('has-data');
-                            }
-                        }
-                        total += data[ro];
-                    });
-
-                    // 進捗更新
-                    document.getElementById('totalCountLabel').innerText = `全 ${total} 件`;
-                    document.getElementById('progressLabel').innerText = `${charsWithData} / ${TOTAL_CHARS} 文字`;
-                    const pct = Math.min(100, (charsWithData / TOTAL_CHARS) * 100);
-                    document.getElementById('progressFill').style.width = `${pct}%`;
-                });
+            
+            updateCounts();
         }
 
-        // ===== キャラクター選択 =====
-        function selectCharacter(char) {
-            if (isRecording) return;
-            document.querySelectorAll('.char-card').forEach(c => c.classList.remove('selected'));
+        // ===== カメラ一時停止・再開制御 =====
+        let cameraActive = true;
 
-            selectedChar = char;
-            const selectedCard = document.querySelector(`.char-card[data-romaji="${char.ro}"]`);
-            if (selectedCard) selectedCard.classList.add('selected');
+        async function toggleCameraActive() {
+            const feed = document.getElementById('cameraFeed');
+            const placeholder = document.getElementById('cameraPlaceholder');
+            const placeholderText = document.getElementById('cameraPlaceholderText');
+            const placeholderIcon = document.getElementById('cameraPlaceholderIcon');
+            const btnResume = document.getElementById('btnResumeCenter');
+            const btnReconnect = document.getElementById('btnReconnectCenter');
+            const btnToggle = document.getElementById('btnToggleCamera');
 
-            document.getElementById('selectedCharLabel').innerText = `${char.ja} (${char.ro})`;
-            document.getElementById('btnRecord').disabled = false;
-            document.getElementById('btnClearClass').disabled = false;
-        }
-
-        // ===== 録画状態 =====
-        function setRecordingState(active) {
-            isRecording = active;
-            const btn = document.getElementById('btnRecord');
-            const overlay = document.getElementById('recordOverlay');
-
-            if (active) {
-                btn.innerText = "⏹ 停止 (Space)";
-                btn.className = "btn btn-danger";
-                overlay.style.display = "flex";
-                document.getElementById('btnDeleteLast').disabled = true;
-
-                recordStartTime = Date.now();
-                document.getElementById('recordTimer').innerText = "0.0s";
-                timerInterval = setInterval(updateTimer, 100);
-            } else {
-                btn.innerText = "⏺ 録画 (Space)";
-                btn.className = "btn btn-primary";
-                overlay.style.display = "none";
-                document.getElementById('btnDeleteLast').disabled = false;
-
-                if (timerInterval) {
-                    clearInterval(timerInterval);
-                    timerInterval = null;
+            if (cameraActive) {
+                // カメラ停止処理
+                try {
+                    const response = await fetch('/api/camera/stop', { method: 'POST' });
+                    const res = await response.json();
+                    if (res.status === 'success') {
+                        cameraActive = false;
+                        
+                        // UIの切り替え
+                        feed.src = "";
+                        feed.classList.add('error');
+                        
+                        placeholder.style.display = "flex";
+                        placeholderIcon.innerText = "⏸";
+                        placeholderText.innerText = "カメラ一時停止中 (CPU負荷軽減中)";
+                        btnResume.style.display = "block";
+                        btnReconnect.style.display = "none";
+                        
+                        btnToggle.innerText = "▶ カメラ再開";
+                        btnToggle.classList.replace('btn-secondary', 'btn-primary');
+                        showToast("カメラを一時停止しました。CPU負荷が下がります。", "success");
+                    }
+                } catch (e) {
+                    showToast("カメラ停止エラーが発生しました", "error");
                 }
-                updateCounts();
-            }
-        }
-
-        // ===== 録画トグル =====
-        function toggleRecording() {
-            if (!selectedChar) return;
-            const targetUrl = isRecording ? '/api/record/stop' : `/api/record/start/${selectedChar.ro}`;
-
-            fetch(targetUrl, { method: 'POST' })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === "started") {
-                        setRecordingState(true);
-                        showToast(`「${selectedChar.ja}」の録画を開始`);
-                    } else if (data.status === "stopped") {
-                        setRecordingState(false);
-                        showToast(`「${selectedChar.ja}」を保存しました ✓`);
-                    }
-                });
-        }
-
-        // ===== 矢印キー移動 =====
-        function moveSelection(dRow, dCol, steps = 0) {
-            if (isRecording || steps > 10) return;
-            selectedRow = (selectedRow + dRow + rows.length) % rows.length;
-            selectedCol = (selectedCol + dCol + 5) % 5;
-
-            const nextChar = rows[selectedRow].chars[selectedCol];
-            if (nextChar && nextChar.ja !== '') {
-                selectCharacter(nextChar);
             } else {
-                moveSelection(dRow, dCol, steps + 1);
+                // カメラ再開処理
+                try {
+                    const response = await fetch('/api/camera/start', { method: 'POST' });
+                    const res = await response.json();
+                    if (res.status === 'success') {
+                        cameraActive = true;
+                        
+                        // UIの切り替え
+                        placeholder.style.display = "none";
+                        btnResume.style.display = "none";
+                        btnReconnect.style.display = "block";
+                        placeholderIcon.innerText = "📷";
+                        placeholderText.innerText = "カメラに接続中…";
+                        
+                        feed.classList.remove('error');
+                        feed.src = `/video_feed?t=${Date.now()}`;
+                        
+                        btnToggle.innerText = "⏸ カメラ一時停止";
+                        btnToggle.classList.replace('btn-primary', 'btn-secondary');
+                        showToast("カメラを再開しました", "success");
+                    }
+                } catch (e) {
+                    showToast("カメラ再開エラーが発生しました", "error");
+                }
             }
         }
 
-        // ===== イベントリスナー =====
-        document.getElementById('btnRecord').onclick = toggleRecording;
+        // ===== 新規単語登録 =====
+        async function addCustomWord() {
+            const kanaInput = document.getElementById('newWordKana');
+            const romajiInput = document.getElementById('newWordRomaji');
 
-        document.getElementById('btnDeleteLast').onclick = () => {
-            fetch('/api/record/delete_last', { method: 'POST' })
-                .then(res => res.json())
-                .then(data => {
-                    showToast(data.message, data.status === "success" ? "success" : "error");
-                    document.getElementById('btnDeleteLast').disabled = true;
-                    updateCounts();
+            const kana = kanaInput.value.trim();
+            const romaji = romajiInput.value.trim().toLowerCase();
+
+            if (!kana || !romaji) {
+                showToast("単語の表記とローマ字IDの両方を入力してください", "error");
+                return;
+            }
+
+            if (!/^[a-z_]+$/.test(romaji)) {
+                showToast("ローマ字IDは英小文字(a-z)とアンダーバー(_)のみで入力してください", "error");
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/words/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ romaji, kana })
                 });
-        };
-
-        document.getElementById('btnClearClass').onclick = () => {
-            if (!selectedChar) return;
-            if (confirm(`「${selectedChar.ja} (${selectedChar.ro})」の全録画データを削除しますか？`)) {
-                fetch(`/api/record/clear_class/${selectedChar.ro}`, { method: 'POST' })
-                    .then(res => res.json())
-                    .then(data => {
-                        showToast(data.message, data.status === "success" ? "success" : "error");
-                        document.getElementById('btnDeleteLast').disabled = true;
-                        updateCounts();
-                    });
+                const res = await response.json();
+                if (res.status === 'success') {
+                    customWords = res.words;
+                    renderCustomWordsGrid();
+                    kanaInput.value = "";
+                    romajiInput.value = "";
+                    showToast(`単語「${kana}」を追加しました`, "success");
+                } else {
+                    showToast(res.message, "error");
+                }
+            } catch (e) {
+                showToast("単語登録中に接続エラーが発生しました", "error");
             }
-        };
+        }
 
-        // ===== キーボード =====
-        window.addEventListener('keydown', (e) => {
-            // テキスト入力中はスキップ
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        // ===== 単語削除 =====
+        async function deleteCustomWord(romaji) {
+            if (!confirm(`単語「${customWords[romaji]}」の登録と、関連するすべてのレコーディングデータを完全に削除しますか？`)) {
+                return;
+            }
 
-            switch (e.code) {
-                case 'Space':
-                    e.preventDefault();
-                    toggleRecording();
-                    break;
-                case 'ArrowUp':    e.preventDefault(); moveSelection(-1, 0); break;
-                case 'ArrowDown':  e.preventDefault(); moveSelection(1, 0); break;
-                case 'ArrowLeft':  e.preventDefault(); moveSelection(0, -1); break;
-                case 'ArrowRight': e.preventDefault(); moveSelection(0, 1); break;
-                case 'KeyD':
-                    if (!isRecording) {
-                        const delBtn = document.getElementById('btnDeleteLast');
-                        if (!delBtn.disabled) delBtn.click();
+            try {
+                const response = await fetch(`/api/words/delete/${romaji}`, { method: 'POST' });
+                const res = await response.json();
+                if (res.status === 'success') {
+                    customWords = res.words;
+                    renderCustomWordsGrid();
+                    deselectAll();
+                    showToast(res.message, "success");
+                } else {
+                    showToast(res.message, "error");
+                }
+            } catch (e) {
+                showToast("単語削除中に接続エラーが発生しました", "error");
+            }
+        }
+
+        // ===== ラベル選択 =====
+        function selectLabel(label, element) {
+            if (state.is_recording) return;
+
+            if (selectedElement) {
+                selectedElement.classList.remove('selected');
+            }
+
+            activeLabel = label;
+            selectedElement = element;
+            element.classList.add('selected');
+
+            const jpName = currentMode === "hiragana" ? ROMAJI_TO_KANA[label] : customWords[label];
+            document.getElementById('selectedCharLabel').innerText = `${jpName} (${label.toUpperCase()})`;
+            document.getElementById('btnRecord').removeAttribute('disabled');
+            document.getElementById('btnClearClass').removeAttribute('disabled');
+        }
+
+        function deselectAll() {
+            if (selectedElement) {
+                selectedElement.classList.remove('selected');
+            }
+            activeLabel = null;
+            selectedElement = null;
+            document.getElementById('selectedCharLabel').innerText = "--";
+            document.getElementById('btnRecord').setAttribute('disabled', 'true');
+            document.getElementById('btnClearClass').setAttribute('disabled', 'true');
+        }
+
+        // ===== ファイルカウントの同期 =====
+        async function updateCounts() {
+            try {
+                const response = await fetch('/api/counts');
+                fileCounts = await response.json();
+
+                let totalFiles = 0;
+                let activeCharCount = 0;
+                
+                const labels = Object.keys(fileCounts);
+
+                labels.forEach(label => {
+                    const count = fileCounts[label];
+                    totalFiles += count;
+                    if (count > 0) activeCharCount++;
+
+                    // バッジの更新
+                    const badgeId = currentMode === "hiragana" ? `badge-${label}` : `badge-word-${label}`;
+                    const badge = document.getElementById(badgeId);
+                    if (badge) {
+                        badge.innerText = count;
+                        badge.classList.toggle('has-data', count > 0);
                     }
-                    break;
+                });
+
+                // 各種進捗インジケータの更新
+                if (currentMode === "hiragana") {
+                    document.getElementById('hiraganaTotalLabel').innerText = `全 ${totalFiles} 件`;
+                    document.getElementById('progressLabel').innerText = `${activeCharCount} / ${labels.length} 文字`;
+                    const percent = labels.length > 0 ? (activeCharCount / labels.length) * 100 : 0;
+                    document.getElementById('progressFill').style.width = `${percent}%`;
+                } else {
+                    document.getElementById('wordsTotalLabel').innerText = `登録単語数: ${labels.length} (計 ${totalFiles} 件録画)`;
+                }
+            } catch (e) {
+                console.error("件数取得エラー:", e);
             }
-        });
+        }
 
-        // ===== ステータスポーリング =====
-        setInterval(() => {
-            fetch('/api/status')
-                .then(res => res.json())
-                .then(data => {
-                    document.getElementById('predChar').innerText = data.pred_class_jp || '--';
-                    document.getElementById('predConf').innerText = `${(data.confidence * 100).toFixed(1)}%`;
-                    document.getElementById('textOutput').innerText = data.text_buffer || '(文字はここに表示されます)';
-                    document.getElementById('velocityLabel').innerText = `Speed: ${data.velocity.toFixed(3)}`;
+        // ===== 録画制御 =====
+        async function toggleRecording() {
+            if (!activeLabel) return;
 
+            const btn = document.getElementById('btnRecord');
+
+            if (!recordInterval) {
+                // 録画開始
+                try {
+                    const response = await fetch(`/api/record/start/${activeLabel}`, { method: 'POST' });
+                    const res = await response.json();
+                    if (res.status === 'started') {
+                        btn.innerText = "⏹ 停止 (Space)";
+                        btn.classList.replace('btn-primary', 'btn-danger');
+                        document.getElementById('recordOverlay').style.display = "flex";
+                        
+                        recordStartTime = Date.now();
+                        recordInterval = setInterval(() => {
+                            const elapsed = ((Date.now() - recordStartTime) / 1000).toFixed(1);
+                            document.getElementById('recordTimer').innerText = `${elapsed}s`;
+                        }, 100);
+                        
+                        document.getElementById('btnDeleteLast').setAttribute('disabled', 'true');
+                        document.getElementById('btnClearClass').setAttribute('disabled', 'true');
+                    }
+                } catch (e) {
+                    showToast("録画の開始に失敗しました", "error");
+                }
+            } else {
+                // 録画停止
+                clearInterval(recordInterval);
+                recordInterval = null;
+                
+                try {
+                    const response = await fetch('/api/record/stop', { method: 'POST' });
+                    const res = await response.json();
+                    if (res.status === 'stopped') {
+                        btn.innerText = "⏺ 録画 (Space)";
+                        btn.classList.replace('btn-danger', 'btn-primary');
+                        document.getElementById('recordOverlay').style.display = "none";
+                        
+                        showToast(`「${currentMode === 'hiragana' ? ROMAJI_TO_KANA[activeLabel] : customWords[activeLabel]}」の録画データを保存しました`, "success");
+                        updateCounts();
+                        document.getElementById('btnDeleteLast').removeAttribute('disabled');
+                        document.getElementById('btnClearClass').removeAttribute('disabled');
+                    }
+                } catch (e) {
+                    showToast("録画の停止中に通信エラーが発生しました", "error");
+                }
+            }
+        }
+
+        // ===== データ元に戻す (直近削除) =====
+        async function deleteLastRecord() {
+            try {
+                const response = await fetch('/api/record/delete_last', { method: 'POST' });
+                const res = await response.json();
+                if (res.status === 'success') {
+                    showToast(res.message, "success");
+                    updateCounts();
+                    document.getElementById('btnDeleteLast').setAttribute('disabled', 'true');
+                } else {
+                    showToast(res.message, "error");
+                }
+            } catch (e) {
+                showToast("通信エラーが発生しました", "error");
+            }
+        }
+
+        // ===== 特定クラスのデータ全クリア =====
+        async function clearClassRecords() {
+            if (!activeLabel) return;
+            const jpName = currentMode === "hiragana" ? ROMAJI_TO_KANA[activeLabel] : customWords[activeLabel];
+            
+            if (!confirm(`「${jpName}」の全レコーディングCSVを物理削除して空にしますか？`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/record/clear_class/${activeLabel}`, { method: 'POST' });
+                const res = await response.json();
+                if (res.status === 'success') {
+                    showToast(res.message, "success");
+                    updateCounts();
+                }
+            } catch (e) {
+                showToast("通信エラーが発生しました", "error");
+            }
+        }
+
+        // ===== 前処理 =====
+        async function preprocessData() {
+            const logs = document.getElementById('trainingLogs');
+            logs.innerText = "【前処理】データ抽出及び幾何学的正規化を実行中...";
+            
+            try {
+                const response = await fetch('/api/preprocess', { method: 'POST' });
+                const res = await response.json();
+                if (res.status === 'success') {
+                    logs.innerText = `✅ ${res.message}\n` + logs.innerText;
+                    showToast("一括前処理が成功しました", "success");
+                    updateVLAStatus();
+                } else {
+                    logs.innerText = `❌ エラー: ${res.message}\n` + logs.innerText;
+                    showToast(res.message, "error");
+                }
+            } catch (e) {
+                logs.innerText = `❌ 接続エラーが発生しました\n` + logs.innerText;
+            }
+        }
+
+        // ===== SVMモデル学習 =====
+        async function trainSVM() {
+            const logs = document.getElementById('trainingLogs');
+            logs.innerText = "【SVM学習】モデルのトレーニングを実行中... (数秒かかります)\n" + logs.innerText;
+            
+            try {
+                const response = await fetch('/api/train', { method: 'POST' });
+                const res = await response.json();
+                if (res.status === 'success') {
+                    logs.innerText = `🎉 ${res.message}\n` + logs.innerText;
+                    showToast("モデルの学習に成功し、推論器をリロードしました！", "success");
+                } else {
+                    logs.innerText = `❌ エラー: ${res.message}\n` + logs.innerText;
+                    showToast(res.message, "error");
+                }
+            } catch (e) {
+                logs.innerText = `❌ 接続エラーが発生しました\n` + logs.innerText;
+            }
+        }
+
+        // ===== テキストクリア =====
+        async function clearText() {
+            try {
+                await fetch('/api/clear_text', { method: 'POST' });
+                document.getElementById('textOutput').innerText = "(文字はここに表示されます)";
+                showToast("表示テキストをクリアしました", "success");
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // ===== パラメータ制御 (Tab 3) =====
+        function updateKVal(val) {
+            currentKValue = parseInt(val);
+            document.getElementById('valK').innerText = val;
+            document.getElementById('vlaTargetK').innerText = `クラスタ数 K=${val}`;
+            updateVLAStatus();
+        }
+
+        async function updateThresholdVal(val) {
+            velocityLimit = parseFloat(val);
+            document.getElementById('valThreshold').innerText = val;
+            
+            // しきい値制限バーの位置更新 (0.003 - 0.020 のレンジを 0% - 100% にマッピング)
+            const min = 0.003, max = 0.020;
+            const percent = ((velocityLimit - min) / (max - min)) * 100;
+            document.getElementById('speedIndicatorLimit').style.left = `${percent}%`;
+
+            try {
+                await fetch(`/api/settings/velocity?threshold=${velocityLimit}`, { method: 'POST' });
+            } catch (e) {
+                console.error("速度しきい値更新エラー:", e);
+            }
+        }
+
+        // ===== リアルタイムステータスポーリング =====
+        function startStatusPolling() {
+            setInterval(async () => {
+                try {
+                    const response = await fetch('/api/status');
+                    const status = await response.json();
+
+                    // 文字起こしバッファ更新
+                    const out = document.getElementById('textOutput');
+                    if (status.text_buffer) {
+                        out.innerText = status.text_buffer;
+                    } else if (out.innerText !== "(文字はここに表示されます)") {
+                        out.innerText = "(文字はここに表示されます)";
+                    }
+
+                    // 予測結果と信頼度更新
+                    const mode = status.task_mode;
+                    if (status.pred_class !== "--") {
+                        const jpName = mode === "hiragana" ? ROMAJI_TO_KANA[status.pred_class] : customWords[status.pred_class];
+                        document.getElementById('predChar').innerText = `${jpName} (${status.pred_class.toUpperCase()})`;
+                        document.getElementById('predConf').innerText = `${(status.confidence * 100).toFixed(1)}%`;
+                    } else {
+                        document.getElementById('predChar').innerText = "--";
+                        document.getElementById('predConf').innerText = "0.0%";
+                    }
+
+                    // 安定状態バッジ
                     const badge = document.getElementById('stabilityBadge');
-                    if (data.is_stable) {
-                        badge.innerText = "STABLE";
+                    if (status.is_stable) {
+                        badge.innerText = "STABLE (入力確定)";
                         badge.style.color = "var(--success)";
                     } else {
                         badge.innerText = "MOVING";
                         badge.style.color = "var(--text-muted)";
                     }
-                });
-        }, 150);
 
-        // ===== テキストクリア =====
-        document.getElementById('btnClearText').onclick = () => {
-            fetch('/api/clear_text', { method: 'POST' })
-                .then(res => res.json())
-                .then(() => {
-                    document.getElementById('textOutput').innerText = '(文字はここに表示されます)';
-                    showToast("テキストをクリアしました");
-                });
-        };
+                    // 右カラム速度表示
+                    document.getElementById('velocityLabel').innerText = `Speed: ${status.velocity.toFixed(4)}`;
 
-        // ===== 学習系ボタン =====
-        document.getElementById('btnPreprocess').onclick = () => {
-            const logs = document.getElementById('trainingLogs');
-            logs.innerText = "前処理を実行中...";
-            showToast("一括前処理を開始しました");
-            fetch('/api/preprocess', { method: 'POST' })
-                .then(res => res.json())
-                .then(data => {
-                    logs.innerText = data.message;
-                    showToast(data.message, data.status === "success" ? "success" : "error");
-                });
-        };
-
-        document.getElementById('btnTrain').onclick = () => {
-            const logs = document.getElementById('trainingLogs');
-            logs.innerText = "学習を開始します...";
-            showToast("モデル学習を開始しました。お待ちください...");
-            fetch('/api/train', { method: 'POST' })
-                .then(res => res.json())
-                .then(data => {
-                    logs.innerText = data.message;
-                    showToast(data.message, data.status === "success" ? "success" : "error");
-                });
-        };
-
-        // ===== VLA & 離散化 (K-Means) 操作系JS =====
-        function updateVLAStatus() {
-            fetch('/api/vla/stats')
-                .then(res => res.json())
-                .then(data => {
-                    const qStatus = document.getElementById('quantizerStatus');
-                    const vStatus = document.getElementById('vlaStatus');
-                    
-                    if (data.has_quantizer) {
-                        qStatus.innerText = `学習済み (${data.num_clusters} ポーズ)`;
-                        qStatus.style.color = "var(--success)";
-                    } else {
-                        qStatus.innerText = "未学習";
-                        qStatus.style.color = "var(--text-muted)";
-                    }
-                    
-                    if (data.has_vla_continuous || data.has_vla_discrete) {
-                        vStatus.innerText = "出力済み ✓";
-                        vStatus.style.color = "var(--success)";
-                    } else {
-                        vStatus.innerText = "未出力";
-                        vStatus.style.color = "var(--text-muted)";
+                    // 設定タブのリアルタイム速度メーター更新
+                    if (document.getElementById('panelSettings').classList.contains('active')) {
+                        document.getElementById('liveVelocityDisplay').innerText = status.velocity.toFixed(5);
+                        
+                        // 速度プログレスバーの更新
+                        const min = 0.003, max = 0.020;
+                        const percent = Math.min(100, Math.max(0, ((status.velocity - min) / (max - min)) * 100));
+                        document.getElementById('speedIndicatorFill').style.width = `${percent}%`;
                     }
 
-                    // ポーズ分布グラフの描画
-                    if (data.has_quantizer && data.pose_distribution && data.pose_distribution.length > 0) {
-                        document.getElementById('poseChartContainer').style.display = 'block';
-                        drawPoseDistribution(data.pose_distribution);
-                    } else {
-                        document.getElementById('poseChartContainer').style.display = 'none';
-                    }
-                });
+                } catch (e) {
+                    console.error("ステータスポーリング失敗:", e);
+                }
+            }, 250);
         }
 
-        function drawPoseDistribution(dist) {
+        // ===== VLA 離散化 & エクスポート =====
+        async function runQuantize() {
+            const btn = document.getElementById('btnQuantize');
+            btn.innerText = "💠 離散化中...";
+            btn.setAttribute('disabled', 'true');
+
+            try {
+                const response = await fetch(`/api/vla/quantize?n_clusters=${currentKValue}`, { method: 'POST' });
+                const res = await response.json();
+                
+                if (res.status === 'success') {
+                    showToast("K-Meansによるアクション離散化に成功しました！", "success");
+                    document.getElementById('quantizerLogs') ? document.getElementById('quantizerLogs').innerText = res.message : null;
+                    updateVLAStatus();
+                } else {
+                    showToast(res.message, "error");
+                }
+            } catch (e) {
+                showToast("通信エラーが発生しました", "error");
+            } finally {
+                btn.innerText = "💠 アクション離散化";
+                btn.removeAttribute('disabled');
+            }
+        }
+
+        async function runExportVLA() {
+            const btn = document.getElementById('btnExportVLA');
+            btn.innerText = "📤 出力中...";
+            btn.setAttribute('disabled', 'true');
+
+            try {
+                const response = await fetch(`/api/vla/export?n_clusters=${currentKValue}`, { method: 'POST' });
+                const res = await response.json();
+                
+                if (res.status === 'success') {
+                    showToast("VLAトレーニングデータ(JSONL)を書き出しました！", "success");
+                    
+                    // プレビュー表示
+                    document.getElementById('vlaPreviewTitle').style.display = "block";
+                    const preview = document.getElementById('vlaPreview');
+                    preview.style.display = "block";
+                    preview.innerText = `[アプローチA]\n${res.preview_continuous.substring(0, 160)}...\n\n[アプローチB]\n${res.preview_discrete}`;
+                    
+                    updateVLAStatus();
+                } else {
+                    showToast(res.message, "error");
+                }
+            } catch (e) {
+                showToast("通信エラーが発生しました", "error");
+            } finally {
+                btn.innerText = "📤 VLAデータ出力";
+                btn.removeAttribute('disabled');
+            }
+        }
+
+        async function updateVLAStatus() {
+            try {
+                const response = await fetch(`/api/vla/stats?n_clusters=${currentKValue}`);
+                const stats = await response.json();
+
+                const qStatus = document.getElementById('quantizerStatus');
+                const vStatus = document.getElementById('vlaStatus');
+
+                if (stats.has_quantizer) {
+                    qStatus.innerText = `学習済み (クラスタ: ${stats.num_clusters})`;
+                    qStatus.style.color = "var(--success)";
+                } else {
+                    qStatus.innerText = "未学習";
+                    qStatus.style.color = "var(--warning)";
+                }
+
+                if (stats.has_vla_discrete) {
+                    vStatus.innerText = `出力済み (フレーム: ${stats.num_frames})`;
+                    vStatus.style.color = "var(--success)";
+                } else {
+                    vStatus.innerText = "未出力";
+                    vStatus.style.color = "var(--warning)";
+                }
+
+                // ポーズトークン分布グラフ描画
+                if (stats.has_quantizer && stats.pose_distribution.length > 0) {
+                    document.getElementById('poseChartContainer').style.display = "block";
+                    drawPoseDistributionChart(stats.pose_distribution);
+                } else {
+                    document.getElementById('poseChartContainer').style.display = "none";
+                }
+            } catch (e) {
+                console.error("VLAステータス更新失敗:", e);
+            }
+        }
+
+        // ミニ分布チャートの描画 (HTML5 Canvas)
+        function drawPoseDistributionChart(distribution) {
             const canvas = document.getElementById('poseChart');
-            if (!canvas) return;
             const ctx = canvas.getContext('2d');
             const w = canvas.width;
             const h = canvas.height;
             
-            // 背景クリア
             ctx.clearRect(0, 0, w, h);
+
+            // 最大カウント値の算出
+            const maxVal = Math.max(...distribution.map(d => d.count)) || 1;
+            const numBars = distribution.length;
+            const barWidth = w / numBars;
+
+            // バーの描画
+            for (let i = 0; i < numBars; i++) {
+                const item = distribution[i];
+                const barHeight = (item.count / maxVal) * (h - 15);
+                const x = i * barWidth;
+                const y = h - barHeight - 5;
+
+                // 色のグラデーション演出
+                ctx.fillStyle = `rgba(99, 102, 241, ${0.4 + (item.count / maxVal) * 0.6})`;
+                ctx.fillRect(x + 1, y, barWidth - 2, barHeight);
+            }
             
-            // 最大個数を見つける
-            const maxCount = Math.max(...dist.map(d => d.count), 1);
-            const barCount = dist.length;
-            const padding = 1.5;
-            const barWidth = (w - (barCount - 1) * padding) / barCount;
-            
-            // グラデーションの作成
-            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-            const gradient = ctx.createLinearGradient(0, h, 0, 0);
-            gradient.addColorStop(0, isDark ? 'rgba(99, 102, 241, 0.2)' : 'rgba(79, 70, 229, 0.3)');
-            gradient.addColorStop(1, isDark ? 'rgba(168, 85, 247, 0.85)' : 'rgba(147, 51, 234, 0.9)');
-            
-            // 描画
-            dist.forEach((d, i) => {
-                const barHeight = (d.count / maxCount) * (h - 10);
-                const x = i * (barWidth + padding);
-                const y = h - barHeight;
-                
-                ctx.fillStyle = gradient;
-                
-                // カウントが0より大きい場合のみ描画
-                if (d.count > 0) {
-                    ctx.beginPath();
-                    // 角丸の棒グラフ
-                    if (ctx.roundRect) {
-                        ctx.roundRect(x, y, barWidth, barHeight, [2, 2, 0, 0]);
-                    } else {
-                        ctx.rect(x, y, barWidth, barHeight);
-                    }
-                    ctx.fill();
-                } else {
-                    // 0カウントは薄いラインを表示
-                    ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
-                    ctx.fillRect(x, h - 2, barWidth, 2);
+            // X軸ラベルライン
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+            ctx.beginPath();
+            ctx.moveTo(0, h - 5);
+            ctx.lineTo(w, h - 5);
+            ctx.stroke();
+        }
+
+        // ===== キーボードショートカット =====
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // 入力欄フォーカス時はショートカットをバイパス
+                if (document.activeElement.tagName === "INPUT") return;
+
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    toggleRecording();
+                } else if (e.code === 'KeyD') {
+                    deleteLastRecord();
                 }
             });
         }
 
-        // 離散化ボタン
-        document.getElementById('btnQuantize').onclick = () => {
-            showToast("アクション離散化モデルの訓練を開始...");
-            fetch('/api/vla/quantize', { method: 'POST' })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === "success") {
-                        showToast(data.message, "success");
-                        updateVLAStatus();
-                    } else {
-                        showToast(data.message, "error");
-                    }
-                });
-        };
+        // ===== ユーティリティ (トースト・カメラリロード) =====
+        function reloadCamera() {
+            const feed = document.getElementById('cameraFeed');
+            feed.src = `/video_feed?t=${Date.now()}`;
+        }
 
-        // VLAエクスポートボタン
-        document.getElementById('btnExportVLA').onclick = () => {
-            showToast("VLAデータセットを変換中...");
-            fetch('/api/vla/export', { method: 'POST' })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === "success") {
-                        showToast(data.message, "success");
-                        
-                        // プレビュー表示
-                        const previewEl = document.getElementById('vlaPreview');
-                        const previewTitle = document.getElementById('vlaPreviewTitle');
-                        previewEl.style.display = 'block';
-                        previewTitle.style.display = 'block';
-                        
-                        // 連続値・離散値のサンプルプレビューを作成
-                        const continuousObj = JSON.parse(data.preview_continuous);
-                        // 配列が長すぎる場合はプレビューを省略表示
-                        if (continuousObj.actions && continuousObj.actions.length > 2) {
-                            continuousObj.actions = [
-                                continuousObj.actions[0],
-                                `... 省略 (${continuousObj.actions.length - 2}フレームの骨格データ) ...`,
-                                continuousObj.actions[continuousObj.actions.length - 1]
-                            ];
-                        }
-                        
-                        const formattedText = 
-`=== [アプローチA: 連続値] ===
-${JSON.stringify(continuousObj, null, 2)}
-
-=== [アプローチB: 離散値] ===
-${JSON.stringify(JSON.parse(data.preview_discrete), null, 2)}`;
-                        
-                        previewEl.innerText = formattedText;
-                        updateVLAStatus();
-                    } else {
-                        showToast(data.message, "error");
-                    }
-                });
-        };
-
-        // ===== 初期化 =====
-        updateCounts();
-        updateVLAStatus();
-        setTimeout(() => selectCharacter({ ja: 'あ', ro: 'a' }), 300);
+        function showToast(message, type = "success") {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast-message toast-${type}`;
+            toast.innerText = message;
+            
+            container.appendChild(toast);
+            
+            // アニメーション表示用
+            setTimeout(() => toast.classList.add('show'), 50);
+            
+            // 3.5秒後に自動消去
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
     </script>
 </body>
 </html>
-
