@@ -1170,8 +1170,8 @@
             <div id="panelFlow" class="tab-panel">
                 <div class="panel" style="max-width: 1000px; margin: 0 auto;">
                     <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">
-                        <span style="font-size: 1.4rem; font-weight: 800; background: linear-gradient(120deg, var(--accent-1), var(--accent-2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">私たちが目指す、手話モーション獲得のロードマップ</span>
-                        <span class="panel-subtitle" style="margin-top: 6px;">手話を少量のデータで賢くAIに覚えさせるための、データの加工とモデル学習の全貌</span>
+                        <span style="font-size: 1.3rem; font-weight: 800; background: linear-gradient(120deg, var(--accent-1), var(--accent-2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">手話動作獲得システム・処理パイプライン</span>
+                        <span class="panel-subtitle" style="margin-top: 6px;">少量データセットによる手話動作の獲得・評価に向けた、データ前処理と学習の全工程</span>
                     </div>
 
                     <div class="flow-stepper">
@@ -1179,17 +1179,17 @@
                         <div class="flow-step-card">
                             <div class="flow-step-badge">1</div>
                             <div class="flow-step-content">
-                                <div class="flow-step-title">📷 私たちの手の動きをデジタル化する（データ収録）</div>
+                                <div class="flow-step-title">📷 骨格関節トラッキング (データ収録)</div>
                                 <div class="flow-step-desc">
-                                    まず、このダッシュボードの「ひらがな」や「手話単語」パネルを使い、PCカメラで自分の手を動かして録画（レコーディング）します。
-                                    裏側では、MediaPipeという仕組みが動き、画像の中の手首や指先など左右合計42箇所の関節点を、毎秒30フレームの「3次元位置データ (x, y, z)」として自動的に切り出しています。
+                                    ダッシュボードの入力インターフェースを用いてカメラ映像から動作データを収録する。
+                                    内部ではMediaPipe Handsが動作し、左右各21関節（計42関節）の3次元座標（x, y, z）を30fpsでリアルタイムに抽出・デジタルデータ化する。
                                 </div>
                                 <div class="flow-data-io">
                                     <span class="flow-io-label">IN:</span>
-                                    <span class="flow-io-val">カメラの映像 (人間の動作)</span>
+                                    <span class="flow-io-val">カメラ動画像 (RGB)</span>
                                     <span class="flow-io-arrow">➔</span>
                                     <span class="flow-io-label">OUT:</span>
-                                    <span class="flow-io-val">左右の手の骨格座標 (126次元の実数値データ)</span>
+                                    <span class="flow-io-val">左右の手の骨格座標 (126次元実数値系列)</span>
                                 </div>
                             </div>
                         </div>
@@ -1200,25 +1200,24 @@
                         <div class="flow-step-card">
                             <div class="flow-step-badge">2</div>
                             <div class="flow-step-content">
-                                <div class="flow-step-title">📐 カメラの位置や手の大きさのブレをそろえる（幾何正規化）</div>
+                                <div class="flow-step-title">📐 幾何学的正規化 (前処理)</div>
                                 <div class="flow-step-desc">
-                                    人がカメラの前に立つ位置（近い・遠い、右寄り・左寄り）や、手の大きさは毎回異なります。
-                                    このノイズを排除するために、**「手首を座標の中心 (0,0,0) に固定」**し、**「中指の長さを基準に全体のスケールを1.0に拡大縮小」**する計算を行います。
-                                    これにより、AIは「平行移動や大きさの違い」に惑わされることなく、純粋な「手の形」だけを効率的に学べるようになります。
+                                    撮影距離や初期位置、手の骨格サイズの個人差（空間的ノイズ）を排除するための前処理を行う。
+                                    手首の関節点を座標原点 `(0,0,0)` とする空間移動を行い、中指の長さを基準として全体のスケールを一定比率に正規化することで、平行移動・縮尺に対する不変性を獲得する。
                                 </div>
                                 <div class="flow-data-io">
                                     <span class="flow-io-label">IN:</span>
-                                    <span class="flow-io-val">生座標の時系列</span>
+                                    <span class="flow-io-val">骨格生座標</span>
                                     <span class="flow-io-arrow">➔</span>
                                     <span class="flow-io-label">OUT:</span>
-                                    <span class="flow-io-val">正規化されたノイズゼロ座標 (126次元)</span>
+                                    <span class="flow-io-val">正規化済み不変座標 (126次元)</span>
                                 </div>
                             </div>
                         </div>
 
                         <div class="flow-connector" style="height: 30px;"></div>
-                        <div style="text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--accent-1); margin: -0.5rem 0 0.5rem 0;">
-                            ✨ ここから、3つのアプローチ（研究の枝）に分かれます ✨
+                        <div style="text-align: center; font-size: 0.72rem; font-weight: 700; color: var(--accent-1); margin: -0.5rem 0 0.5rem 0; letter-spacing: 1px;">
+                            ▼ 正規化データの利用経路と3つのアプローチ分岐
                         </div>
 
                         <!-- Branch Area -->
@@ -1228,13 +1227,13 @@
                                 <div class="flow-branch-tag">アプローチ A</div>
                                 <div class="flow-step-title" style="margin-top: 0.5rem;">📝 リアルタイム文字起こし (SVM分類)</div>
                                 <div class="flow-step-desc" style="font-size: 0.72rem; margin-top: 0.5rem;">
-                                    <strong>「今、この画面で文字を打つための軽量アプローチ」</strong><br>
-                                    1フレーム（その瞬間）の手の形だけを切り出し、サポートベクターマシン (SVM) という手法で瞬時に「ひらがな」を当てます。
-                                    手がピタッと静止した瞬間（移動スピードがしきい値を下回った時）に入力文字として確定する仕組みになっており、チャットUIのような直感的な文字入力キーボードとして実用的な速度で機能します。
+                                    <strong>「静的ポーズの高速識別と入力インターフェース」</strong><br>
+                                    1フレームごとの正規化座標（126次元）をサポートベクターマシン (SVM) に入力し、対応する文字を即時に判定する。
+                                    手の移動速度が定義されたしきい値を下回った時点（静止状態）をトリガーにして文字起こしバッファへ文字を確定入力する。
                                 </div>
                                 <div class="flow-data-io" style="margin-top: 8px;">
                                     <span class="flow-io-label">特徴:</span>
-                                    <span class="flow-io-val" style="color: var(--success);">超高速・リアルタイム文字入力</span>
+                                    <span class="flow-io-val" style="color: var(--success);">超低遅延・静的分類によるテキスト入力</span>
                                 </div>
                             </div>
 
@@ -1243,35 +1242,35 @@
                                 <div class="flow-branch-tag" style="background: linear-gradient(135deg, var(--text-muted), var(--border-color)); color: var(--text-secondary);">アプローチ B</div>
                                 <div class="flow-step-title" style="margin-top: 0.5rem;">〽️ 連続値による動作予測 (VLA)</div>
                                 <div class="flow-step-desc" style="font-size: 0.72rem; margin-top: 0.5rem;">
-                                    <strong>「座標の数値をそのままAIに予測させるアプローチ」</strong><br>
-                                    関節の3D座標値を、実数（float数値）の滑らかな軌跡のままVLAに入力し、次にロボットが動くべき位置を予測させます。
-                                    カクつきのない滑らかな手話動作を生成できるポテンシャルがありますが、出力される数値の組み合わせが無限にあるため、少量のデータセットではAIの学習が収束しにくく、動きがブレやすいという研究課題があります。
+                                    <strong>「連続的な数値ベクトル空間における軌跡予測」</strong><br>
+                                    正規化した3次元座標の実数値をそのまま入力・出力としてVLAモデルにマッピングする。
+                                    滑らかな手の動きを直接シミュレーション可能である一方、高次元の実数値予測（回帰問題）となるため、極小データセット環境では学習の収束が困難となりブレが生じる。
                                 </div>
                                 <div class="flow-data-io" style="margin-top: 8px;">
                                     <span class="flow-io-label">特徴:</span>
-                                    <span class="flow-io-val" style="color: var(--warning);">なめらかだが少量データでの学習が困難</span>
+                                    <span class="flow-io-val" style="color: var(--warning);">高解像度な軌跡出力・学習難易度：高</span>
                                 </div>
                             </div>
 
                             <!-- Branch C: Discrete VLA -->
                             <div class="flow-branch-card" style="border-color: var(--accent-1); background: rgba(99, 102, 241, 0.05);">
-                                <div class="flow-branch-tag">★ 私たちの本命アプローチ C</div>
-                                <div class="flow-step-title" style="margin-top: 0.5rem;">💬 ポーズの言葉化 (離散化VLA)</div>
+                                <div class="flow-branch-tag">★ 推奨アプローチ C</div>
+                                <div class="flow-step-title" style="margin-top: 0.5rem;">💬 ポーズのトークン化 (離散化VLA)</div>
                                 <div class="flow-step-desc" style="font-size: 0.72rem; margin-top: 0.5rem;">
-                                    <strong>「手の形を『言葉』に変えて、VLAの言語脳で作文する」</strong><br>
-                                    複雑な手の形を、あらかじめK-Meansで学習した $K$ 個（例: 64個）の代表ポーズに分類し、手の動きを「文字トークン（例: `<pose_23>`）」に置き換えます。
-                                    VLAの脳である「大規模言語モデル（LLM）」はもともと言葉を操るのが得意なため、手話を「単語の並び（作文）」として与えることで、**わずか数件〜数十件のデータでも爆速で手話を学習・再現する能力**を引き出せます。
+                                    <strong>「動作を『ポーズ言語』に変換する少量データ対応策」</strong><br>
+                                    126次元の座標をK-Meansによって $K$ 個（例: 64個）の代表ポーズにクラスタリングし、手の状態を離散IDトークン（例: `<pose_23>`）に置換する。
+                                    VLAモデルの事前学習済み言語モデル（L）の推論脳をそのまま流用できるため、極小データ環境下でも高速に動作パターンを学習・収束させることが可能である。
                                 </div>
                                 <div class="flow-data-io" style="margin-top: 8px;">
                                     <span class="flow-io-label">特徴:</span>
-                                    <span class="flow-io-val" style="color: var(--accent-3);">極小データでの高精度な動作生成</span>
+                                    <span class="flow-io-val" style="color: var(--accent-3);">VLAの言語脳を最大活用・少量データ最適</span>
                                 </div>
                             </div>
                         </div>
 
                         <div class="flow-connector" style="height: 30px;"></div>
-                        <div style="text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--accent-2); margin-top: -0.5rem;">
-                            ✨ ここから再び合流し、Google Colabで学習と評価を行います ✨
+                        <div style="text-align: center; font-size: 0.72rem; font-weight: 700; color: var(--accent-2); margin-top: -0.5rem; letter-spacing: 1px;">
+                            ▼ 収集データのパッケージングと外部クラウドでの学習
                         </div>
                         <div class="flow-connector"></div>
 
@@ -1279,17 +1278,16 @@
                         <div class="flow-step-card">
                             <div class="flow-step-badge">3</div>
                             <div class="flow-step-content">
-                                <div class="flow-step-title">📤 データをAI用に書き出す（VLAデータ出力）</div>
+                                <div class="flow-step-title">📤 学習用データエクスポート</div>
                                 <div class="flow-step-desc">
-                                    アプローチBまたはCに合わせて、手の動きをAIが読み込めるトレーニング用ファイル（JSONL形式）に自動変換します。
-                                    「この日本語に対応する手のトークンはこれ」というペアを作成し、クラウドでの学習にすぐに回せる状態にパッケージングします。
+                                    アプローチBまたはCの形式に準拠して、指示テキストと時系列アクション（座標値またはトークン系列）を統合したJSONL形式のデータセットファイルを自動出力する。
                                 </div>
                                 <div class="flow-data-io">
                                     <span class="flow-io-label">IN:</span>
-                                    <span class="flow-io-val">前処理済みデータ</span>
+                                    <span class="flow-io-val">前処理済み時系列配列</span>
                                     <span class="flow-io-arrow">➔</span>
                                     <span class="flow-io-label">OUT:</span>
-                                    <span class="flow-io-val">学習用 JSONL ファイル</span>
+                                    <span class="flow-io-val">VLA入力用 JSONL データセット</span>
                                 </div>
                             </div>
                         </div>
@@ -1300,18 +1298,17 @@
                         <div class="flow-step-card">
                             <div class="flow-step-badge">4</div>
                             <div class="flow-step-content">
-                                <div class="flow-step-title">🧠 Google ColabのGPUで追加学習する（PEFT / LoRAファインチューニング）</div>
+                                <div class="flow-step-title">🧠 Colab 4-bit PEFT (LoRAファインチューニング)</div>
                                 <div class="flow-step-desc">
-                                    私たちのPCでは動かない70億パラメータの巨大な VLA 基盤モデル（openvla-7b）を、Google Colab上のクラウドGPUに読み込みます。
-                                    モデル全体を書き換えるのではなく、LoRA（Low-Rank Adaptation）と呼ばれる軽量アダプターをモデルの自己アテンション層（Lの脳）に挿入し、私たちの追加した手話データのみを効率的に馴染ませる学習（ファインチューニング）を行います。
-                                    これにより、普通のPC環境しかない私たちの研究室でも、短時間かつ少量のデータで新しいジェスチャーの追加学習が可能になります。
+                                    外部のGoogle Colab環境上で 70億パラメータ規模のVLA基盤モデルである openvla-7b を4-bit量子化ロードする。
+                                    モデルの言語脳（L：Llama/Vicunaベース）のAttention層にLoRAを適用して追加学習を行うことで、ローカルマシンの計算負荷を回避しつつ、少量データでの効率的なモデル更新を検証する。
                                 </div>
                                 <div class="flow-data-io">
                                     <span class="flow-io-label">IN:</span>
-                                    <span class="flow-io-val">openvla-7b ＋ JSONLデータ</span>
+                                    <span class="flow-io-val">openvla-7b 重み ＋ 出力JSONL</span>
                                     <span class="flow-io-arrow">➔</span>
                                     <span class="flow-io-label">OUT:</span>
-                                    <span class="flow-io-val">学習済み LoRA 重み (卒論の学習曲線データ)</span>
+                                    <span class="flow-io-val">微調整済み LoRA 重み (学習曲線)</span>
                                 </div>
                             </div>
                         </div>
