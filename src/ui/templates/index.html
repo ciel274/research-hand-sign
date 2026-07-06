@@ -987,6 +987,45 @@
             animation: pulse-glow 1.5s infinite;
         }
 
+        /* ===== Nested L-focused Sub-branches ===== */
+        .flow-sub-branches {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.6rem;
+            margin-top: 0.8rem;
+            width: 100%;
+        }
+
+        .flow-sub-branch-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.8rem;
+            font-size: 0.68rem;
+            transition: all 0.2s ease;
+        }
+
+        .flow-sub-branch-card:hover {
+            border-color: var(--accent-2);
+            background: rgba(99, 102, 241, 0.02);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .flow-sub-branch-title {
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .flow-sub-branch-desc {
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
         @media (max-width: 900px) {
             .flow-branches-row {
                 flex-direction: column;
@@ -1261,9 +1300,29 @@
                                     126次元の座標をK-Meansによって $K$ 個（例: 64個）の代表ポーズにクラスタリングし、手の状態を離散IDトークン（例: `<pose_23>`）に置換する。
                                     VLAモデルの事前学習済み言語モデル（L）の推論脳をそのまま流用できるため、極小データ環境下でも高速に動作パターンを学習・収束させることが可能である。
                                 </div>
-                                <div class="flow-data-io" style="margin-top: 8px;">
+                                <div class="flow-data-io" style="margin-top: 8px; margin-bottom: 8px;">
                                     <span class="flow-io-label">特徴:</span>
                                     <span class="flow-io-val" style="color: var(--accent-3);">VLAの言語脳を最大活用・少量データ最適</span>
+                                </div>
+                                
+                                <!-- Lにフォーカスした4つの検証アプローチ -->
+                                <div class="flow-sub-branches">
+                                    <div class="flow-sub-branch-card">
+                                        <div class="flow-sub-branch-title">🔑 L-①: LoRAパラメータ最適化</div>
+                                        <div class="flow-sub-branch-desc">LoRAのランク($r=8, 32$等)や適用レイヤー(Attention/MLP)を変更し、動作の再現性と学習効率のトレードオフを比較する。</div>
+                                    </div>
+                                    <div class="flow-sub-branch-card">
+                                        <div class="flow-sub-branch-title">💬 L-②: 言語セマンティクス条件付け</div>
+                                        <div class="flow-sub-branch-desc">指示文(無意味ID vs 日本語の豊かな表現)による差を検証し、事前学習済みの言語文脈が運動獲得に与える効果を測る。</div>
+                                    </div>
+                                    <div class="flow-sub-branch-card">
+                                        <div class="flow-sub-branch-title">📑 L-③: 文脈内学習による生成</div>
+                                        <div class="flow-sub-branch-desc">モデル追加学習を一切行わず、入力プロンプトに見本を数件並べる（In-Context）のみで手話を再現できるかをテストする。</div>
+                                    </div>
+                                    <div class="flow-sub-branch-card">
+                                        <div class="flow-sub-branch-title">💠 L-④: トークン再利用戦略</div>
+                                        <div class="flow-sub-branch-desc">新規トークンの追加と、LLMの辞書に既存の「稀少文字」をポーズとして割り当てる手法のどちらが学習効率に優れるかを比べる。</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
