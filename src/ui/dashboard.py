@@ -35,6 +35,7 @@ state = {
     "is_recording": False,
     "active_label": None,
     "current_file_path": None,
+    "last_recorded_file": None,  # 直近の録画ファイルを追跡
     "velocity": 0.0,
     "pred_class": "--",
     "confidence": 0.0,
@@ -324,9 +325,45 @@ def record_stop():
     """
     print(f"録画停止: {os.path.basename(state['current_file_path']) if state['current_file_path'] else 'None'}")
     state["is_recording"] = False
+    state["last_recorded_file"] = state["current_file_path"]  # 削除用に記録
     state["active_label"] = None
     state["current_file_path"] = None
     return {"status": "stopped"}
+
+@app.post("/api/record/delete_last")
+def delete_last_record():
+    """
+    直近に録画された1件のCSVファイルを物理削除します。
+    """
+    last_file = state.get("last_recorded_file")
+    if last_file and os.path.exists(last_file):
+        try:
+            os.remove(last_file)
+            print(f"直近の録画を削除しました: {os.path.basename(last_file)}")
+            state["last_recorded_file"] = None
+            return {"status": "success", "message": f"直近の録画を削除しました: {os.path.basename(last_file)}"}
+        except Exception as e:
+            return {"status": "error", "message": f"削除エラー: {e}"}
+    return {"status": "error", "message": "削除できる直近の録画データがありません。"}
+
+@app.post("/api/record/clear_class/{label}")
+def clear_class_records(label: str):
+    """
+    指定した文字（ラベル）のすべてのCSVデータを物理削除します。
+    """
+    files = glob.glob(os.path.join(RAW_DATA_DIR, f"sign_language_{label}_*.csv"))
+    if not files:
+        return {"status": "success", "message": f"'{label}' のデータは既に空です。"}
+    deleted_count = 0
+    for f in files:
+        try:
+            os.remove(f)
+            deleted_count += 1
+        except Exception as e:
+            print(f"ファイル削除エラー ({f}): {e}")
+    state["last_recorded_file"] = None
+    print(f"'{label}' のデータを {deleted_count} 件削除しました。")
+    return {"status": "success", "message": f"'{label}' の録画データを {deleted_count} 件すべて削除しました。"}
 
 @app.get("/api/status")
 def get_status():

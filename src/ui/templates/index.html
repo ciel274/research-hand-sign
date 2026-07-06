@@ -347,6 +347,10 @@
                     <button class="btn btn-primary" id="btnRecord" disabled>録画開始 (Space)</button>
                     <button class="btn btn-secondary" id="btnClearText">テキストクリア</button>
                 </div>
+                <div class="controls" style="margin-top: 0.5rem; gap: 0.5rem;">
+                    <button class="btn btn-secondary" id="btnDeleteLast" style="font-size: 0.85rem; padding: 0.6rem;" disabled>直前の録画を削除</button>
+                    <button class="btn btn-danger" id="btnClearClass" style="font-size: 0.85rem; padding: 0.6rem; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: var(--danger);" disabled>この文字をリセット</button>
+                </div>
             </div>
 
             <!-- 推論テキスト表示 -->
@@ -451,6 +455,7 @@
             
             document.getElementById('selectedCharLabel').innerText = `${char.ja} (${char.ro})`;
             document.getElementById('btnRecord').disabled = false;
+            document.getElementById('btnClearClass').disabled = false;
         }
 
         // 録画状態のUI更新
@@ -463,10 +468,12 @@
                 btn.innerText = "録画停止 (Space)";
                 btn.className = "btn btn-danger";
                 overlay.style.display = "flex";
+                document.getElementById('btnDeleteLast').disabled = true;
             } else {
                 btn.innerText = "録画開始 (Space)";
                 btn.className = "btn btn-primary";
                 overlay.style.display = "none";
+                document.getElementById('btnDeleteLast').disabled = false;
                 updateCounts();
             }
         }
@@ -490,6 +497,33 @@
 
         // イベントリスナー
         document.getElementById('btnRecord').onclick = toggleRecording;
+
+        // 直近の録画を削除
+        document.getElementById('btnDeleteLast').onclick = () => {
+            const logs = document.getElementById('trainingLogs');
+            fetch('/api/record/delete_last', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    logs.innerText = data.message;
+                    document.getElementById('btnDeleteLast').disabled = true;
+                    updateCounts();
+                });
+        };
+
+        // この文字のデータをリセット
+        document.getElementById('btnClearClass').onclick = () => {
+            if (!selectedChar) return;
+            if (confirm(`本当に「${selectedChar.ja} (${selectedChar.ro})」のすべての録画データを削除しますか？`)) {
+                const logs = document.getElementById('trainingLogs');
+                fetch(`/api/record/clear_class/${selectedChar.ro}`, { method: 'POST' })
+                    .then(res => res.json())
+                    .then(data => {
+                        logs.innerText = data.message;
+                        document.getElementById('btnDeleteLast').disabled = true;
+                        updateCounts();
+                    });
+            }
+        };
 
         // キーボード制御 (Spaceで録画、Backspaceで消去)
         window.addEventListener('keydown', (e) => {
