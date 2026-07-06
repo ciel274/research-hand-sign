@@ -917,6 +917,82 @@
             margin-left: 31px;
             border-left: 2px dashed rgba(255, 255, 255, 0.15);
         }
+
+        /* ===== Flow Tab Full-Width Override & Branching ===== */
+        .container.flow-active {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .container.flow-active > div:first-child {
+            width: 100%;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .container.flow-active .right-column {
+            display: none !important;
+        }
+
+        .flow-branches-row {
+            display: flex;
+            gap: 1.2rem;
+            width: 100%;
+            margin: 1.2rem 0;
+        }
+
+        .flow-branch-card {
+            flex: 1;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.2rem;
+            position: relative;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            cursor: default;
+        }
+
+        .flow-branch-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-1);
+            background: var(--bg-card-hover);
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.15);
+        }
+
+        .flow-branch-tag {
+            position: absolute;
+            top: -10px;
+            left: 15px;
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 800;
+            padding: 2px 10px;
+            border-radius: 4px;
+            box-shadow: 0 4px 8px rgba(99, 102, 241, 0.3);
+        }
+
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 5px rgba(99, 102, 241, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.6); }
+            100% { box-shadow: 0 0 5px rgba(99, 102, 241, 0.3); }
+        }
+
+        .flow-step-card:hover .flow-step-badge {
+            animation: pulse-glow 1.5s infinite;
+        }
+
+        .flow-branch-card:hover .flow-branch-tag {
+            animation: pulse-glow 1.5s infinite;
+        }
+
+        @media (max-width: 900px) {
+            .flow-branches-row {
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1092,127 +1168,150 @@
 
             <!-- タブ4: 研究フロー解説 -->
             <div id="panelFlow" class="tab-panel">
-                <div class="panel">
-                    <div class="panel-title">
-                        <span>手話動作獲得 VLA パイプライン</span>
-                        <span class="panel-subtitle">データ処理と学習の流れ</span>
+                <div class="panel" style="max-width: 1000px; margin: 0 auto;">
+                    <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">
+                        <span style="font-size: 1.4rem; font-weight: 800; background: linear-gradient(120deg, var(--accent-1), var(--accent-2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">私たちが目指す、手話モーション獲得のロードマップ</span>
+                        <span class="panel-subtitle" style="margin-top: 6px;">手話を少量のデータで賢くAIに覚えさせるための、データの加工とモデル学習の全貌</span>
                     </div>
 
                     <div class="flow-stepper">
-                        <!-- Step 1 -->
+                        <!-- Step 1: 収録 -->
                         <div class="flow-step-card">
                             <div class="flow-step-badge">1</div>
                             <div class="flow-step-content">
-                                <div class="flow-step-title">📷 骨格関節トラッキング (Perception)</div>
+                                <div class="flow-step-title">📷 私たちの手の動きをデジタル化する（データ収録）</div>
                                 <div class="flow-step-desc">
-                                    Webカメラ画像から、手話モーションに伴う左右の手の関節点（各21点、計42点）を毎秒30回リアルタイムに検出します。
+                                    まず、このダッシュボードの「ひらがな」や「手話単語」パネルを使い、PCカメラで自分の手を動かして録画（レコーディング）します。
+                                    裏側では、MediaPipeという仕組みが動き、画像の中の手首や指先など左右合計42箇所の関節点を、毎秒30フレームの「3次元位置データ (x, y, z)」として自動的に切り出しています。
                                 </div>
                                 <div class="flow-data-io">
                                     <span class="flow-io-label">IN:</span>
-                                    <span class="flow-io-val">RGB画像</span>
+                                    <span class="flow-io-val">カメラの映像 (人間の動作)</span>
                                     <span class="flow-io-arrow">➔</span>
                                     <span class="flow-io-label">OUT:</span>
-                                    <span class="flow-io-val">関節座標 (126次元実数値)</span>
+                                    <span class="flow-io-val">左右の手の骨格座標 (126次元の実数値データ)</span>
                                 </div>
                             </div>
                         </div>
 
                         <div class="flow-connector"></div>
 
-                        <!-- Step 2 -->
+                        <!-- Step 2: 正規化 -->
                         <div class="flow-step-card">
                             <div class="flow-step-badge">2</div>
                             <div class="flow-step-content">
-                                <div class="flow-step-title">📐 幾何学的正規化 (Normalization)</div>
+                                <div class="flow-step-title">📐 カメラの位置や手の大きさのブレをそろえる（幾何正規化）</div>
                                 <div class="flow-step-desc">
-                                    手首を原点とし、中指の長さでスケールを統一。これにより、カメラ位置や手の大きさの差（ノイズ）が完全に相殺されます。
+                                    人がカメラの前に立つ位置（近い・遠い、右寄り・左寄り）や、手の大きさは毎回異なります。
+                                    このノイズを排除するために、**「手首を座標の中心 (0,0,0) に固定」**し、**「中指の長さを基準に全体のスケールを1.0に拡大縮小」**する計算を行います。
+                                    これにより、AIは「平行移動や大きさの違い」に惑わされることなく、純粋な「手の形」だけを効率的に学べるようになります。
                                 </div>
                                 <div class="flow-data-io">
                                     <span class="flow-io-label">IN:</span>
-                                    <span class="flow-io-val">生座標 (126D)</span>
+                                    <span class="flow-io-val">生座標の時系列</span>
                                     <span class="flow-io-arrow">➔</span>
                                     <span class="flow-io-label">OUT:</span>
-                                    <span class="flow-io-val">平行移動・縮尺不変座標 (126D)</span>
+                                    <span class="flow-io-val">正規化されたノイズゼロ座標 (126次元)</span>
                                 </div>
                             </div>
                         </div>
 
+                        <div class="flow-connector" style="height: 30px;"></div>
+                        <div style="text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--accent-1); margin: -0.5rem 0 0.5rem 0;">
+                            ✨ ここから、3つのアプローチ（研究の枝）に分かれます ✨
+                        </div>
+
+                        <!-- Branch Area -->
+                        <div class="flow-branches-row">
+                            <!-- Branch A: SVM -->
+                            <div class="flow-branch-card">
+                                <div class="flow-branch-tag">アプローチ A</div>
+                                <div class="flow-step-title" style="margin-top: 0.5rem;">📝 リアルタイム文字起こし (SVM分類)</div>
+                                <div class="flow-step-desc" style="font-size: 0.72rem; margin-top: 0.5rem;">
+                                    <strong>「今、この画面で文字を打つための軽量アプローチ」</strong><br>
+                                    1フレーム（その瞬間）の手の形だけを切り出し、サポートベクターマシン (SVM) という手法で瞬時に「ひらがな」を当てます。
+                                    手がピタッと静止した瞬間（移動スピードがしきい値を下回った時）に入力文字として確定する仕組みになっており、チャットUIのような直感的な文字入力キーボードとして実用的な速度で機能します。
+                                </div>
+                                <div class="flow-data-io" style="margin-top: 8px;">
+                                    <span class="flow-io-label">特徴:</span>
+                                    <span class="flow-io-val" style="color: var(--success);">超高速・リアルタイム文字入力</span>
+                                </div>
+                            </div>
+
+                            <!-- Branch B: Continuous VLA -->
+                            <div class="flow-branch-card">
+                                <div class="flow-branch-tag" style="background: linear-gradient(135deg, var(--text-muted), var(--border-color)); color: var(--text-secondary);">アプローチ B</div>
+                                <div class="flow-step-title" style="margin-top: 0.5rem;">〽️ 連続値による動作予測 (VLA)</div>
+                                <div class="flow-step-desc" style="font-size: 0.72rem; margin-top: 0.5rem;">
+                                    <strong>「座標の数値をそのままAIに予測させるアプローチ」</strong><br>
+                                    関節の3D座標値を、実数（float数値）の滑らかな軌跡のままVLAに入力し、次にロボットが動くべき位置を予測させます。
+                                    カクつきのない滑らかな手話動作を生成できるポテンシャルがありますが、出力される数値の組み合わせが無限にあるため、少量のデータセットではAIの学習が収束しにくく、動きがブレやすいという研究課題があります。
+                                </div>
+                                <div class="flow-data-io" style="margin-top: 8px;">
+                                    <span class="flow-io-label">特徴:</span>
+                                    <span class="flow-io-val" style="color: var(--warning);">なめらかだが少量データでの学習が困難</span>
+                                </div>
+                            </div>
+
+                            <!-- Branch C: Discrete VLA -->
+                            <div class="flow-branch-card" style="border-color: var(--accent-1); background: rgba(99, 102, 241, 0.05);">
+                                <div class="flow-branch-tag">★ 私たちの本命アプローチ C</div>
+                                <div class="flow-step-title" style="margin-top: 0.5rem;">💬 ポーズの言葉化 (離散化VLA)</div>
+                                <div class="flow-step-desc" style="font-size: 0.72rem; margin-top: 0.5rem;">
+                                    <strong>「手の形を『言葉』に変えて、VLAの言語脳で作文する」</strong><br>
+                                    複雑な手の形を、あらかじめK-Meansで学習した $K$ 個（例: 64個）の代表ポーズに分類し、手の動きを「文字トークン（例: `<pose_23>`）」に置き換えます。
+                                    VLAの脳である「大規模言語モデル（LLM）」はもともと言葉を操るのが得意なため、手話を「単語の並び（作文）」として与えることで、**わずか数件〜数十件のデータでも爆速で手話を学習・再現する能力**を引き出せます。
+                                </div>
+                                <div class="flow-data-io" style="margin-top: 8px;">
+                                    <span class="flow-io-label">特徴:</span>
+                                    <span class="flow-io-val" style="color: var(--accent-3);">極小データでの高精度な動作生成</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flow-connector" style="height: 30px;"></div>
+                        <div style="text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--accent-2); margin-top: -0.5rem;">
+                            ✨ ここから再び合流し、Google Colabで学習と評価を行います ✨
+                        </div>
                         <div class="flow-connector"></div>
 
-                        <!-- Step 3 -->
+                        <!-- Step 3: エクスポート -->
                         <div class="flow-step-card">
                             <div class="flow-step-badge">3</div>
                             <div class="flow-step-content">
-                                <div class="flow-step-title">💠 アクション離散化 (Quantization)</div>
+                                <div class="flow-step-title">📤 データをAI用に書き出す（VLAデータ出力）</div>
                                 <div class="flow-step-desc">
-                                    K-Meansを用いて、無限にある手の形を $K$ 個（例: 64個）の代表ポーズにクラスタリング。連続データをトークンIDに圧縮します。
+                                    アプローチBまたはCに合わせて、手の動きをAIが読み込めるトレーニング用ファイル（JSONL形式）に自動変換します。
+                                    「この日本語に対応する手のトークンはこれ」というペアを作成し、クラウドでの学習にすぐに回せる状態にパッケージングします。
                                 </div>
                                 <div class="flow-data-io">
                                     <span class="flow-io-label">IN:</span>
-                                    <span class="flow-io-val">正規化座標 (126D)</span>
+                                    <span class="flow-io-val">前処理済みデータ</span>
                                     <span class="flow-io-arrow">➔</span>
                                     <span class="flow-io-label">OUT:</span>
-                                    <span class="flow-io-val">ポーズトークン (ID: 0〜K-1)</span>
+                                    <span class="flow-io-val">学習用 JSONL ファイル</span>
                                 </div>
                             </div>
                         </div>
 
                         <div class="flow-connector"></div>
 
-                        <!-- Step 4 -->
+                        <!-- Step 4: 学習 -->
                         <div class="flow-step-card">
                             <div class="flow-step-badge">4</div>
                             <div class="flow-step-content">
-                                <div class="flow-step-title">📤 VLAデータ出力 (Dataset Export)</div>
+                                <div class="flow-step-title">🧠 Google ColabのGPUで追加学習する（PEFT / LoRAファインチューニング）</div>
                                 <div class="flow-step-desc">
-                                    指示文プロンプトとポーズトークン系列を結合し、Hugging Faceフォーマットのデータセット（JSONL）を書き出します。
+                                    私たちのPCでは動かない70億パラメータの巨大な VLA 基盤モデル（openvla-7b）を、Google Colab上のクラウドGPUに読み込みます。
+                                    モデル全体を書き換えるのではなく、LoRA（Low-Rank Adaptation）と呼ばれる軽量アダプターをモデルの自己アテンション層（Lの脳）に挿入し、私たちの追加した手話データのみを効率的に馴染ませる学習（ファインチューニング）を行います。
+                                    これにより、普通のPC環境しかない私たちの研究室でも、短時間かつ少量のデータで新しいジェスチャーの追加学習が可能になります。
                                 </div>
                                 <div class="flow-data-io">
                                     <span class="flow-io-label">IN:</span>
-                                    <span class="flow-io-val">指示文＋トークン系列</span>
+                                    <span class="flow-io-val">openvla-7b ＋ JSONLデータ</span>
                                     <span class="flow-io-arrow">➔</span>
                                     <span class="flow-io-label">OUT:</span>
-                                    <span class="flow-io-val">JSONLファイル (Few-shotデータ)</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flow-connector"></div>
-
-                        <!-- Step 5 -->
-                        <div class="flow-step-card">
-                            <div class="flow-step-badge">5</div>
-                            <div class="flow-step-content">
-                                <div class="flow-step-title">🧠 Colab 4-bit LoRAファインチューニング</div>
-                                <div class="flow-step-desc">
-                                    Google ColabのGPUを使用。70億パラメータのベースモデルにLoRAパラメータを追加し、極小データで手話を学習させます。
-                                </div>
-                                <div class="flow-data-io">
-                                    <span class="flow-io-label">IN:</span>
-                                    <span class="flow-io-val">ベースモデル ＋ JSONL</span>
-                                    <span class="flow-io-arrow">➔</span>
-                                    <span class="flow-io-label">OUT:</span>
-                                    <span class="flow-io-val">学習済み LoRA アダプター重み</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flow-connector"></div>
-
-                        <!-- Step 6 -->
-                        <div class="flow-step-card">
-                            <div class="flow-step-badge">6</div>
-                            <div class="flow-step-content">
-                                <div class="flow-step-title">🤖 双方向手話アクション生成 (Inference)</div>
-                                <div class="flow-step-desc">
-                                    言語指示を入力すると、モデルの「L」アテンション層の推論によって、両手の動きを滑らかな時系列トークンとして自律生成します。
-                                </div>
-                                <div class="flow-data-io">
-                                    <span class="flow-io-label">IN:</span>
-                                    <span class="flow-io-val">「『りんご』を手話で表現して」</span>
-                                    <span class="flow-io-arrow">➔</span>
-                                    <span class="flow-io-label">OUT:</span>
-                                    <span class="flow-io-val">3Dモーションアニメーション</span>
+                                    <span class="flow-io-val">学習済み LoRA 重み (卒論の学習曲線データ)</span>
                                 </div>
                             </div>
                         </div>
@@ -1393,6 +1492,8 @@
         }
 
         // ===== タブ切り替え =====
+        let wasCameraActiveBeforeFlow = false;
+
         async function switchTab(mode) {
             currentMode = (mode === "settings" || mode === "flow") ? currentMode : mode;
             
@@ -1407,6 +1508,25 @@
             document.getElementById('panelWords').classList.toggle('active', mode === 'words');
             document.getElementById('panelSettings').classList.toggle('active', mode === 'settings');
             document.getElementById('panelFlow').classList.toggle('active', mode === 'flow');
+
+            // フロー表示時は右カラム(カメラフィード)を消す
+            const container = document.querySelector('.container');
+            container.classList.toggle('flow-active', mode === 'flow');
+
+            // スマートカメラ制御: フロータブの時は自動でカメラを一時停止し、CPU負荷を節約
+            if (mode === 'flow') {
+                if (cameraActive) {
+                    wasCameraActiveBeforeFlow = true;
+                    // 一時停止を実行
+                    await toggleCameraActive();
+                }
+            } else {
+                // 他のタブに戻ったとき、以前カメラがONだったなら自動再開
+                if (wasCameraActiveBeforeFlow && !cameraActive) {
+                    wasCameraActiveBeforeFlow = false;
+                    await toggleCameraActive();
+                }
+            }
 
             if (mode !== "settings" && mode !== "flow") {
                 // バックエンドの動作モードを切り替え
