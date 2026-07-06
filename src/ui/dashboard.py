@@ -7,11 +7,12 @@ import os
 import time
 import numpy as np
 import mediapipe as mp
-from fastapi import FastAPI, Response
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import threading
+from PIL import Image, ImageDraw, ImageFont
 
 # 前処理と学習スクリプトをインポート
 import sys
@@ -20,6 +21,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from learning.preprocess import normalize_hand_data, preprocess_all_raw_data
 from learning.model import load_model
 from learning.train import train_model
+from learning.quantizer import PoseQuantizer
+from learning.vla_dataset import export_vla_datasets
 
 app = FastAPI(title="Hand Sign Web Dashboard")
 
@@ -35,6 +38,20 @@ TEMPLATE_PATH = os.path.join(BASE_DIR, "src", "ui", "templates", "index.html")
 os.makedirs(RAW_DATA_DIR, exist_ok=True)
 os.makedirs(PROCESSED_DATA_DIR, exist_ok=True)
 
+# ローマ字からひらがなへのマッピング辞書
+ROMAJI_TO_KANA = {
+    "a": "あ", "i": "い", "u": "う", "e": "え", "o": "お",
+    "ka": "か", "ki": "き", "ku": "く", "ke": "け", "ko": "こ",
+    "sa": "さ", "si": "し", "su": "す", "se": "せ", "so": "そ",
+    "ta": "た", "ti": "ち", "tu": "つ", "te": "て", "to": "と",
+    "na": "な", "ni": "に", "nu": "ぬ", "ne": "ね", "no": "の",
+    "ha": "は", "hi": "ひ", "hu": "ふ", "he": "へ", "ho": "ほ",
+    "ma": "ま", "mi": "み", "mu": "む", "me": "め", "mo": "も",
+    "ya": "や", "yu": "ゆ", "yo": "よ",
+    "ra": "ら", "ri": "り", "ru": "る", "re": "れ", "ro": "ろ",
+    "wa": "わ", "wo": "を", "nn": "ん"
+}
+
 # グローバルな状態管理変数
 state = {
     "is_recording": False,
@@ -43,6 +60,7 @@ state = {
     "last_recorded_file": None,  # 直近の録画ファイルを追跡
     "velocity": 0.0,
     "pred_class": "--",
+    "pred_class_jp": "--",
     "confidence": 0.0,
     "is_stable": False,
     "text_buffer": "",
@@ -73,6 +91,82 @@ class CameraManager:
                 print(f"モデルロードエラー: {e}")
         else:
             self.model = None
+
+    def _draw_overlay(self, frame):
+        # PIL Imageに変換して日本語を描画
+        h, w, _ = frame.shape
+        pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        draw = ImageDraw.Draw(pil_img)
+
+        # フォント設定（macOS環境前提）
+        font_path_bold = "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc"
+        font_path_regular = "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc"
+
+        try:
+            font_char = ImageFont.truetype(font_path_bold, 48)
+            font_text = ImageFont.truetype(font_path_regular, 24)
+            font_sub = ImageFont.truetype(font_path_regular, 14)
+        except Exception:
+            # フォント読み込みエラー時のフォールバック
+            font_char = ImageFont.load_default()
+            font_text = ImageFont.load_default()
+            font_sub = ImageFont.load_default()
+
+        # 1. 右上に現在の予測文字 & 信頼度をオーバーレイ
+        pred_char = state["pred_class"] or "--"
+        pred_char_jp = ROMAJI_TO_KANA.get(pred_char, pred_char)
+        confidence = state["confidence"]
+        is_stable = state["is_stable"]
+        
+        # 背景ボックス (右上)
+        box_w, box_h = 160, 90
+        box_x, box_y = w - box_w - 15, 15
+        draw.rounded_rectangle([box_x, box_y, box_x + box_w, box_y + box_h], radius=10, fill=(12, 14, 20, 200))
+        
+        # 予測ラベル描画
+        draw.text((box_x + 15, box_y + 10), "予測:", font=font_sub, fill=(200, 200, 200))
+        draw.text((box_x + 15, box_y + 28), pred_char_jp, font=font_char, fill=(168, 85, 247) if is_stable else (226, 232, 240))
+        
+        # 信頼度/ステータス描画
+        has_hands = (pred_char != "--")
+        status_text = f"{confidence*100:.1f}%" if has_hands else "検出なし"
+        status_color = (16, 185, 129) if is_stable else (148, 163, 184)
+        draw.text(
+            (box_x + 85, box_y + 35), status_text, font=font_sub, fill=status_color
+        )
+        draw.text(
+            (box_x + 85, box_y + 55),
+            "STABLE" if is_stable else "MOVING",
+            font=font_sub,
+            fill=status_color,
+        )
+
+        # 2. 下部に認識したテキストバッファを表示
+        text_buf = state["text_buffer"]
+        if text_buf:
+            # 文字列が長すぎる場合は末尾を表示
+            max_len = 18
+            display_text = (
+                text_buf if len(text_buf) <= max_len else "..." + text_buf[-max_len:]
+            )
+
+            # 背景ボックス (下部)
+            buf_h = 50
+            buf_x1, buf_y1 = 15, h - buf_h - 15
+            buf_x2, buf_y2 = w - 15, h - 15
+            draw.rounded_rectangle(
+                [buf_x1, buf_y1, buf_x2, buf_y2], radius=8, fill=(12, 14, 20, 220)
+            )
+
+            # テキスト描画
+            draw.text(
+                (buf_x1 + 15, buf_y1 + 10),
+                f"文章: {display_text}",
+                font=font_text,
+                fill=(255, 255, 255),
+            )
+
+        return cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
 
     def start(self):
         if not self.running:
@@ -121,13 +215,17 @@ class CameraManager:
                     time.sleep(0.05)
                     # 連続30フレーム(約1.5秒)失敗した場合、カメラ再接続を試みる
                     if consecutive_failures >= 30:
-                        print("カメラからの映像取得に失敗し続けたため、再接続を試みます...")
+                        print(
+                            "カメラからの映像取得に失敗し続けたため、再接続を試みます..."
+                        )
                         self.cap.release()
                         for cam_id in [0, 1, 2]:
                             cap = cv2.VideoCapture(cam_id)
                             if cap.isOpened():
                                 self.cap = cap
-                                print(f"カメラの再接続に成功しました (カメラID: {cam_id})")
+                                print(
+                                    f"カメラの再接続に成功しました (カメラID: {cam_id})"
+                                )
                                 consecutive_failures = 0
                                 break
                             else:
@@ -141,7 +239,7 @@ class CameraManager:
                 frame.flags.writeable = False
                 results = hands.process(frame)
                 frame.flags.writeable = True
-                frame = cv2.cvtColor(frame, var_name := cv2.COLOR_RGB2BGR)
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
                 right_hand_data = [0.0] * 63
                 left_hand_data = [0.0] * 63
@@ -213,6 +311,7 @@ class CameraManager:
                         confidence = probs[max_idx]
 
                         state["pred_class"] = pred_class
+                        state["pred_class_jp"] = ROMAJI_TO_KANA.get(pred_class, pred_class)
                         state["confidence"] = float(confidence)
 
                         if confidence >= CONFIDENCE_THRESHOLD:
@@ -221,7 +320,7 @@ class CameraManager:
                                 or (current_time - self.last_input_time)
                                 > INPUT_COOLDOWN
                             ):
-                                state["text_buffer"] += pred_class
+                                state["text_buffer"] += ROMAJI_TO_KANA.get(pred_class, pred_class)
                                 self.last_prediction = pred_class
                                 self.last_input_time = current_time
                                 self.stability_counter = -5  # しばらく入力をロック
@@ -229,6 +328,7 @@ class CameraManager:
                         print(f"推論エラー: {e}")
                 elif not has_hands:
                     state["pred_class"] = "--"
+                    state["pred_class_jp"] = "--"
                     state["confidence"] = 0.0
 
                 # --- 録画中のデータ保存 ---
@@ -241,6 +341,9 @@ class CameraManager:
                             f.write(row_str)
                     except Exception as e:
                         print(f"録画書き込みエラー: {e}")
+
+                # --- フレームに認識結果をオーバーレイ描画 ---
+                frame = self._draw_overlay(frame)
 
                 # ストリーム用フレーム更新
                 _, jpeg = cv2.imencode(".jpg", frame)
@@ -282,7 +385,9 @@ def gen(cam):
 
 @app.get("/video_feed")
 def video_feed():
-    return Response(gen(camera), media_type="multipart/x-mixed-replace; boundary=frame")
+    return StreamingResponse(
+        gen(camera), media_type="multipart/x-mixed-replace; boundary=frame"
+    )
 
 
 # --- API エンドポイント ---
@@ -513,6 +618,144 @@ def run_train():
         }
     except Exception as e:
         return {"status": "error", "message": f"学習エラー: {e}"}
+
+
+# --- VLA & 離散化関連 API ---
+
+@app.post("/api/vla/quantize")
+def run_vla_quantize(n_clusters: int = 64):
+    """
+    データセットを読み込み、K-Meansでポーズの量子化器を学習させます。
+    再構成誤差（MSE）を返します。
+    """
+    dataset_path = os.path.join(PROCESSED_DATA_DIR, "dataset.csv")
+    quantizer_path = os.path.join(BASE_DIR, "src", "learning", "weights", "pose_quantizer.joblib")
+    
+    if not os.path.exists(dataset_path):
+        return {
+            "status": "error",
+            "message": "データセットが見つかりません。先に「一括前処理」を実行してください。"
+        }
+        
+    try:
+        df = pd.read_csv(dataset_path)
+        feature_cols = [col for col in df.columns if col not in ['timestamp', 'label']]
+        X = df[feature_cols].values
+        
+        # クラスタ数がデータ数を超えないように調整
+        actual_clusters = min(n_clusters, len(X))
+        
+        quantizer = PoseQuantizer(n_clusters=actual_clusters)
+        quantizer.fit(X)
+        quantizer.save(quantizer_path)
+        
+        # 再構成誤差(MSE)の算出
+        tokens = quantizer.tokenize(X)
+        X_recon = quantizer.detokenize(tokens)
+        mse = float(np.mean((X - X_recon) ** 2))
+        
+        return {
+            "status": "success",
+            "message": f"ポーズ量子化モデル（K-Means）の学習が完了しました！\nクラスタ数: {actual_clusters}\n再構成誤差 (MSE): {mse:.6f}",
+            "mse": mse,
+            "num_frames": len(X),
+            "num_clusters": actual_clusters,
+            "tokens_preview": tokens[:15].tolist()
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"量子化学習エラー: {e}"}
+
+
+@app.post("/api/vla/export")
+def run_vla_export():
+    """
+    生CSVデータから、アプローチA（連続値）およびB（離散値）のVLA用データセットを書き出します。
+    """
+    continuous_path = os.path.join(PROCESSED_DATA_DIR, "vla_continuous.jsonl")
+    discrete_path = os.path.join(PROCESSED_DATA_DIR, "vla_discrete.jsonl")
+    
+    try:
+        export_vla_datasets()
+        
+        # エクスポートファイルのプレビューを読み込む
+        preview_continuous = ""
+        preview_discrete = ""
+        
+        if os.path.exists(continuous_path):
+            with open(continuous_path, "r", encoding="utf-8") as f:
+                preview_continuous = f.readline().strip()
+                
+        if os.path.exists(discrete_path):
+            with open(discrete_path, "r", encoding="utf-8") as f:
+                preview_discrete = f.readline().strip()
+                
+        return {
+            "status": "success",
+            "message": "VLA用データセットの書き出しに成功しました！",
+            "continuous_file": os.path.basename(continuous_path),
+            "discrete_file": os.path.basename(discrete_path),
+            "preview_continuous": preview_continuous,
+            "preview_discrete": preview_discrete
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"エクスポートエラー: {e}"}
+
+
+@app.get("/api/vla/stats")
+def get_vla_stats():
+    """
+    ポーズ量子化器とVLAデータセットの現在のステータス、およびポーズの出現頻度分布を返します。
+    """
+    quantizer_path = os.path.join(BASE_DIR, "src", "learning", "weights", "pose_quantizer.joblib")
+    dataset_path = os.path.join(PROCESSED_DATA_DIR, "dataset.csv")
+    continuous_path = os.path.join(PROCESSED_DATA_DIR, "vla_continuous.jsonl")
+    discrete_path = os.path.join(PROCESSED_DATA_DIR, "vla_discrete.jsonl")
+    
+    has_quantizer = os.path.exists(quantizer_path)
+    has_dataset = os.path.exists(dataset_path)
+    has_vla_continuous = os.path.exists(continuous_path)
+    has_vla_discrete = os.path.exists(discrete_path)
+    
+    # ポーズトークンの頻度集計
+    pose_distribution = []
+    num_frames = 0
+    num_clusters = 0
+    
+    if has_quantizer and has_dataset:
+        try:
+            # データをロードしてトークン化
+            df = pd.read_csv(dataset_path)
+            feature_cols = [col for col in df.columns if col not in ['timestamp', 'label']]
+            X = df[feature_cols].values
+            num_frames = len(X)
+            
+            quantizer = PoseQuantizer()
+            quantizer.load(quantizer_path)
+            num_clusters = quantizer.n_clusters
+            
+            tokens = quantizer.tokenize(X)
+            
+            # 各トークンの個数を集計
+            unique, counts = np.unique(tokens, return_counts=True)
+            dist_map = dict(zip(unique.tolist(), counts.tolist()))
+            
+            # 全クラスタIDに対する分布リストを作成
+            for i in range(num_clusters):
+                pose_distribution.append({
+                    "token_id": i,
+                    "count": dist_map.get(i, 0)
+                })
+        except Exception as e:
+            print(f"ステータス集計中のエラー: {e}")
+            
+    return {
+        "has_quantizer": has_quantizer,
+        "has_vla_continuous": has_vla_continuous,
+        "has_vla_discrete": has_vla_discrete,
+        "num_frames": num_frames,
+        "num_clusters": num_clusters,
+        "pose_distribution": pose_distribution
+    }
 
 
 if __name__ == "__main__":

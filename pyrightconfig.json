@@ -1,8 +1,8 @@
 {
-  "venvPath": ".",
+  "venvPath": "/Users/reo/Desktop/5semester/研究/research-hand-sign",
   "venv": ".venv",
   "extraPaths": [
-    "src"
+    "/Users/reo/Desktop/5semester/研究/research-hand-sign/src"
   ],
   "pythonVersion": "3.9"
 }

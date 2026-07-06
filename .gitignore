@@ -1,0 +1,23 @@
+# Python virtual environment
+.venv/
+__pycache__/
+*.pyc
+
+# Local IDE settings
+.vscode/
+.DS_Store
+
+# Large datasets & raw recording files (to be synced via Shared Google Drive instead of GitHub)
+data/raw/*.csv
+data/processed/*.csv
+data/processed/*.jsonl
+
+# Large model weights (saved in joblib/pytorch formats)
+src/learning/weights/*.joblib
+src/learning/weights/*.pt
+
+# Root weights and plot results
+*.pt
+*.png
+*.pdf
+
