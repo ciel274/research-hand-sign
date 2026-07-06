@@ -99,8 +99,35 @@
         /* 50音グリッド */
         .char-grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 0.8rem;
+            grid-template-columns: 70px repeat(5, 1fr);
+            gap: 0.5rem;
+        }
+
+        .grid-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0.5rem 0;
+            border-bottom: 2px solid rgba(99, 102, 241, 0.15);
+            user-select: none;
+        }
+
+        .row-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            border-right: 2px solid rgba(255, 255, 255, 0.05);
+            user-select: none;
         }
 
         .char-card {
@@ -302,9 +329,53 @@
             color: #ffffff;
             word-break: break-all;
         }
+
+        /* トースト通知 */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast-message {
+            background: rgba(17, 24, 39, 0.9);
+            border-left: 4px solid var(--accent-primary);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            min-width: 250px;
+            max-width: 350px;
+            transform: translateX(120%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .toast-message.show {
+            transform: translateX(0);
+        }
+        
+        .toast-message.toast-error {
+            border-left-color: var(--danger);
+        }
+        
+        .toast-message.toast-success {
+            border-left-color: var(--success);
+        }
     </style>
 </head>
 <body>
+    <!-- トースト通知用コンテナ -->
+    <div class="toast-container" id="toastContainer"></div>
 
     <header>
         <h1>手話指文字 Web Dashboard</h1>
@@ -318,7 +389,7 @@
         <div class="panel">
             <div class="panel-title">
                 <span>50音データ収集グリッド</span>
-                <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">選択して撮影</span>
+                <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">選択して撮影 (矢印キーで移動)</span>
             </div>
             <div class="char-grid" id="charGrid">
                 <!-- JavaScriptで動的生成 -->
@@ -334,7 +405,7 @@
                     <img src="/video_feed" class="camera-feed" alt="Camera Feed">
                     <div class="record-overlay" id="recordOverlay">
                         <span style="width: 10px; height: 10px; background: white; border-radius: 50%;"></span>
-                        RECORDING...
+                        RECORDING... <span id="recordTimer" style="margin-left: 5px; font-variant-numeric: tabular-nums;">0.0s</span>
                     </div>
                 </div>
 
@@ -387,44 +458,94 @@
     </div>
 
     <script>
-        // 50音のリスト定義（ひらがな, ローマ字ラベル）
-        const characters = [
-            { ja: 'あ', ro: 'a' }, { ja: 'い', ro: 'i' }, { ja: 'う', ro: 'u' }, { ja: 'え', ro: 'e' }, { ja: 'お', ro: 'o' },
-            { ja: 'か', ro: 'ka' }, { ja: 'き', ro: 'ki' }, { ja: 'く', ro: 'ku' }, { ja: 'け', ro: 'ke' }, { ja: 'こ', ro: 'ko' },
-            { ja: 'さ', ro: 'sa' }, { ja: 'し', ro: 'si' }, { ja: 'す', ro: 'su' }, { ja: 'せ', ro: 'se' }, { ja: 'そ', ro: 'so' },
-            { ja: 'た', ro: 'ta' }, { ja: 'ち', ro: 'ti' }, { ja: 'つ', ro: 'tu' }, { ja: 'て', ro: 'te' }, { ja: 'と', ro: 'to' },
-            { ja: 'な', ro: 'na' }, { ja: 'に', ro: 'ni' }, { ja: 'ぬ', ro: 'nu' }, { ja: 'ね', ro: 'ne' }, { ja: 'の', ro: 'no' },
-            { ja: 'は', ro: 'ha' }, { ja: 'ひ', ro: 'hi' }, { ja: 'ふ', ro: 'hu' }, { ja: 'へ', ro: 'he' }, { ja: 'ほ', ro: 'ho' },
-            { ja: 'ま', ro: 'ma' }, { ja: 'み', ro: 'mi' }, { ja: 'む', ro: 'mu' }, { ja: 'め', ro: 'me' }, { ja: 'も', ro: 'mo' },
-            { ja: 'や', ro: 'ya' }, { ja: '', ro: '' },    { ja: 'ゆ', ro: 'yu' }, { ja: '', ro: '' },    { ja: 'よ', ro: 'yo' },
-            { ja: 'ら', ro: 'ra' }, { ja: 'り', ro: 'ri' }, { ja: 'る', ro: 'ru' }, { ja: 'れ', ro: 're' }, { ja: 'ろ', ro: 'ro' },
-            { ja: 'わ', ro: 'wa' }, { ja: '', ro: '' },    { ja: 'を', ro: 'wo' }, { ja: '', ro: '' },    { ja: 'ん', ro: 'nn' }
+        // 50音のリスト定義（行ごとにグループ化）
+        const rows = [
+            { name: 'あ行', chars: [{ ja: 'あ', ro: 'a' }, { ja: 'い', ro: 'i' }, { ja: 'う', ro: 'u' }, { ja: 'え', ro: 'e' }, { ja: 'お', ro: 'o' }] },
+            { name: 'か行', chars: [{ ja: 'か', ro: 'ka' }, { ja: 'き', ro: 'ki' }, { ja: 'く', ro: 'ku' }, { ja: 'け', ro: 'ke' }, { ja: 'こ', ro: 'ko' }] },
+            { name: 'さ行', chars: [{ ja: 'さ', ro: 'sa' }, { ja: 'し', ro: 'si' }, { ja: 'す', ro: 'su' }, { ja: 'せ', ro: 'se' }, { ja: 'そ', ro: 'so' }] },
+            { name: 'た行', chars: [{ ja: 'た', ro: 'ta' }, { ja: 'ち', ro: 'ti' }, { ja: 'つ', ro: 'tu' }, { ja: 'て', ro: 'te' }, { ja: 'と', ro: 'to' }] },
+            { name: 'な行', chars: [{ ja: 'な', ro: 'na' }, { ja: 'に', ro: 'ni' }, { ja: 'ぬ', ro: 'nu' }, { ja: 'ね', ro: 'ne' }, { ja: 'の', ro: 'no' }] },
+            { name: 'は行', chars: [{ ja: 'は', ro: 'ha' }, { ja: 'ひ', ro: 'hi' }, { ja: 'ふ', ro: 'hu' }, { ja: 'へ', ro: 'he' }, { ja: 'ほ', ro: 'ho' }] },
+            { name: 'ま行', chars: [{ ja: 'ま', ro: 'ma' }, { ja: 'み', ro: 'mi' }, { ja: 'む', ro: 'mu' }, { ja: 'め', ro: 'me' }, { ja: 'も', ro: 'mo' }] },
+            { name: 'や行', chars: [{ ja: 'や', ro: 'ya' }, { ja: '', ro: '' },    { ja: 'ゆ', ro: 'yu' }, { ja: '', ro: '' },    { ja: 'よ', ro: 'yo' }] },
+            { name: 'ら行', chars: [{ ja: 'ら', ro: 'ra' }, { ja: 'り', ro: 'ri' }, { ja: 'る', ro: 'ru' }, { ja: 'れ', ro: 're' }, { ja: 'ろ', ro: 'ro' }] },
+            { name: 'わ行', chars: [{ ja: 'わ', ro: 'wa' }, { ja: '', ro: '' },    { ja: 'を', ro: 'wo' }, { ja: '', ro: '' },    { ja: 'ん', ro: 'nn' }] }
         ];
 
+        let selectedRow = 0;
+        let selectedCol = 0;
         let selectedChar = null;
         let isRecording = false;
 
-        // UI生成
-        const grid = document.getElementById('charGrid');
-        characters.forEach((char) => {
-            if (char.ja === '') {
-                // 空白カード (やゆよなどのプレースホルダー)
-                const empty = document.createElement('div');
-                empty.style.visibility = 'hidden';
-                grid.appendChild(empty);
-                return;
-            }
+        let timerInterval = null;
+        let recordStartTime = 0;
 
-            const card = document.createElement('div');
-            card.className = 'char-card';
-            card.dataset.romaji = char.ro;
-            card.innerHTML = `
-                <span class="count-badge" id="badge-${char.ro}">0</span>
-                <span class="japanese">${char.ja}</span>
-                <span class="romaji">${char.ro}</span>
-            `;
-            card.onclick = () => selectCharacter(char);
-            grid.appendChild(card);
+        // トースト通知表示関数
+        function showToast(message, type = "success") {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast-message toast-${type}`;
+            toast.innerText = message;
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 10);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // 録画経過時間のタイマー更新
+        function updateTimer() {
+            const elapsed = (Date.now() - recordStartTime) / 1000;
+            document.getElementById('recordTimer').innerText = `${elapsed.toFixed(1)}s`;
+        }
+
+        // UI生成（ヘッダーとグリッド）
+        const grid = document.getElementById('charGrid');
+        
+        // 1. ヘッダー行を生成
+        const headers = ['行 \\ 段', 'あ', 'い', 'う', 'え', 'お'];
+        headers.forEach(h => {
+            const hDiv = document.createElement('div');
+            hDiv.className = 'grid-header';
+            hDiv.innerText = h;
+            grid.appendChild(hDiv);
+        });
+
+        // 2. 各行を生成
+        rows.forEach((row, rIdx) => {
+            // 行ラベルの追加
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'row-label';
+            labelDiv.innerText = row.name;
+            grid.appendChild(labelDiv);
+
+            // 各文字カードの追加
+            row.chars.forEach((char, cIdx) => {
+                if (char.ja === '') {
+                    const empty = document.createElement('div');
+                    empty.style.visibility = 'hidden';
+                    grid.appendChild(empty);
+                    return;
+                }
+
+                const card = document.createElement('div');
+                card.className = 'char-card';
+                card.dataset.romaji = char.ro;
+                card.innerHTML = `
+                    <span class="count-badge" id="badge-${char.ro}">0</span>
+                    <span class="japanese">${char.ja}</span>
+                    <span class="romaji">${char.ro}</span>
+                `;
+                card.onclick = () => {
+                    selectedRow = rIdx;
+                    selectedCol = cIdx;
+                    selectCharacter(char);
+                };
+                grid.appendChild(card);
+            });
         });
 
         // 収録数カウントの初期取得
@@ -443,7 +564,7 @@
 
         // キャラクター選択
         function selectCharacter(char) {
-            if (isRecording) return; // 録画中は切り替え不可
+            if (isRecording) return;
             
             document.querySelectorAll('.char-card').forEach(c => c.classList.remove('selected'));
             
@@ -469,11 +590,22 @@
                 btn.className = "btn btn-danger";
                 overlay.style.display = "flex";
                 document.getElementById('btnDeleteLast').disabled = true;
+                
+                // タイマースタート
+                recordStartTime = Date.now();
+                document.getElementById('recordTimer').innerText = "0.0s";
+                timerInterval = setInterval(updateTimer, 100);
             } else {
                 btn.innerText = "録画開始 (Space)";
                 btn.className = "btn btn-primary";
                 overlay.style.display = "none";
                 document.getElementById('btnDeleteLast').disabled = false;
+                
+                // タイマーストップ
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
                 updateCounts();
             }
         }
@@ -489,10 +621,28 @@
                 .then(data => {
                     if (data.status === "started") {
                         setRecordingState(true);
+                        showToast(`「${selectedChar.ja}」の録画を開始しました`);
                     } else if (data.status === "stopped") {
                         setRecordingState(false);
+                        showToast(`「${selectedChar.ja}」のデータを保存しました`, "success");
                     }
                 });
+        }
+
+        // 矢印キー移動 (再帰スキップ対応)
+        function moveSelection(dRow, dCol, steps = 0) {
+            if (isRecording || steps > 10) return; // 無限ループ回避
+            
+            selectedRow = (selectedRow + dRow + rows.length) % rows.length;
+            selectedCol = (selectedCol + dCol + 5) % 5;
+            
+            const nextChar = rows[selectedRow].chars[selectedCol];
+            if (nextChar && nextChar.ja !== '') {
+                selectCharacter(nextChar);
+            } else {
+                // 空白セルの場合はもう一歩進める
+                moveSelection(dRow, dCol, steps + 1);
+            }
         }
 
         // イベントリスナー
@@ -500,11 +650,14 @@
 
         // 直近の録画を削除
         document.getElementById('btnDeleteLast').onclick = () => {
-            const logs = document.getElementById('trainingLogs');
             fetch('/api/record/delete_last', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
-                    logs.innerText = data.message;
+                    if (data.status === "success") {
+                        showToast(data.message, "success");
+                    } else {
+                        showToast(data.message, "error");
+                    }
                     document.getElementById('btnDeleteLast').disabled = true;
                     updateCounts();
                 });
@@ -514,22 +667,37 @@
         document.getElementById('btnClearClass').onclick = () => {
             if (!selectedChar) return;
             if (confirm(`本当に「${selectedChar.ja} (${selectedChar.ro})」のすべての録画データを削除しますか？`)) {
-                const logs = document.getElementById('trainingLogs');
                 fetch(`/api/record/clear_class/${selectedChar.ro}`, { method: 'POST' })
                     .then(res => res.json())
                     .then(data => {
-                        logs.innerText = data.message;
+                        if (data.status === "success") {
+                            showToast(data.message, "success");
+                        } else {
+                            showToast(data.message, "error");
+                        }
                         document.getElementById('btnDeleteLast').disabled = true;
                         updateCounts();
                     });
             }
         };
 
-        // キーボード制御 (Spaceで録画、Backspaceで消去)
+        // キーボード制御 (Spaceで録画、矢印キーで移動)
         window.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
                 e.preventDefault();
                 toggleRecording();
+            } else if (e.code === 'ArrowUp') {
+                e.preventDefault();
+                moveSelection(-1, 0);
+            } else if (e.code === 'ArrowDown') {
+                e.preventDefault();
+                moveSelection(1, 0);
+            } else if (e.code === 'ArrowLeft') {
+                e.preventDefault();
+                moveSelection(0, -1);
+            } else if (e.code === 'ArrowRight') {
+                e.preventDefault();
+                moveSelection(0, 1);
             }
         });
 
@@ -538,7 +706,6 @@
             fetch('/api/status')
                 .then(res => res.json())
                 .then(data => {
-                    // 推論結果更新
                     document.getElementById('predChar').innerText = data.pred_class || '--';
                     document.getElementById('predConf').innerText = `${(data.confidence * 100).toFixed(1)}%`;
                     document.getElementById('textOutput').innerText = data.text_buffer || '(文字入力はここに表示されます)';
@@ -561,6 +728,7 @@
                 .then(res => res.json())
                 .then(data => {
                     document.getElementById('textOutput').innerText = '(文字入力はここに表示されます)';
+                    showToast("文字起こし出力をクリアしました");
                 });
         };
 
@@ -568,10 +736,16 @@
         document.getElementById('btnPreprocess').onclick = () => {
             const logs = document.getElementById('trainingLogs');
             logs.innerText = "前処理を実行中...";
+            showToast("データセットの一括前処理を開始しました");
             fetch('/api/preprocess', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
                     logs.innerText = data.message;
+                    if (data.status === "success") {
+                        showToast(data.message, "success");
+                    } else {
+                        showToast(data.message, "error");
+                    }
                 });
         };
 
@@ -579,15 +753,26 @@
         document.getElementById('btnTrain').onclick = () => {
             const logs = document.getElementById('trainingLogs');
             logs.innerText = "モデルの訓練を開始します...";
+            showToast("モデルの学習処理を開始しました。少々お待ちください...");
             fetch('/api/train', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
                     logs.innerText = data.message;
+                    if (data.status === "success") {
+                        showToast(data.message, "success");
+                    } else {
+                        showToast(data.message, "error");
+                    }
                 });
         };
 
         // 起動時にカウント取得
         updateCounts();
+        
+        // 最初のロード時に「あ」を選択状態にする
+        setTimeout(() => {
+            selectCharacter({ ja: 'あ', ro: 'a' });
+        }, 300);
     </script>
 </body>
 </html>
