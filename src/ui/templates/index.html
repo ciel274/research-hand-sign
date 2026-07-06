@@ -818,6 +818,105 @@
             margin-bottom: 4px;
             text-align: center;
         }
+
+        /* ===== Flow Visualization Styles ===== */
+        .flow-stepper {
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+            margin-top: 1rem;
+        }
+
+        .flow-step-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+            position: relative;
+            transition: all 0.25s ease;
+            cursor: default;
+        }
+
+        .flow-step-card:hover {
+            transform: translateX(4px);
+            border-color: var(--accent-1);
+            background: var(--bg-card-hover);
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
+        }
+
+        .flow-step-badge {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+            box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
+        }
+
+        .flow-step-content {
+            flex: 1;
+        }
+
+        .flow-step-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .flow-step-desc {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .flow-data-io {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.15);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-family: 'SF Mono', monospace;
+            font-size: 0.65rem;
+            border: 1px solid var(--border-color);
+            width: fit-content;
+        }
+
+        .flow-io-label {
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .flow-io-val {
+            color: var(--accent-3);
+            font-weight: bold;
+        }
+
+        .flow-io-arrow {
+            color: var(--text-muted);
+        }
+
+        .flow-connector {
+            width: 2px;
+            height: 20px;
+            background: dashed var(--border-color);
+            margin-left: 31px;
+            border-left: 2px dashed rgba(255, 255, 255, 0.15);
+        }
     </style>
 </head>
 <body>
@@ -846,6 +945,9 @@
             </button>
             <button class="tab-btn" id="tabBtnSettings" onclick="switchTab('settings')">
                 ⚙️ 研究パラメータ・手法比較
+            </button>
+            <button class="tab-btn" id="tabBtnFlow" onclick="switchTab('flow')">
+                🌊 研究フロー解説
             </button>
         </div>
     </div>
@@ -985,6 +1087,136 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- タブ4: 研究フロー解説 -->
+            <div id="panelFlow" class="tab-panel">
+                <div class="panel">
+                    <div class="panel-title">
+                        <span>手話動作獲得 VLA パイプライン</span>
+                        <span class="panel-subtitle">データ処理と学習の流れ</span>
+                    </div>
+
+                    <div class="flow-stepper">
+                        <!-- Step 1 -->
+                        <div class="flow-step-card">
+                            <div class="flow-step-badge">1</div>
+                            <div class="flow-step-content">
+                                <div class="flow-step-title">📷 骨格関節トラッキング (Perception)</div>
+                                <div class="flow-step-desc">
+                                    Webカメラ画像から、手話モーションに伴う左右の手の関節点（各21点、計42点）を毎秒30回リアルタイムに検出します。
+                                </div>
+                                <div class="flow-data-io">
+                                    <span class="flow-io-label">IN:</span>
+                                    <span class="flow-io-val">RGB画像</span>
+                                    <span class="flow-io-arrow">➔</span>
+                                    <span class="flow-io-label">OUT:</span>
+                                    <span class="flow-io-val">関節座標 (126次元実数値)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flow-connector"></div>
+
+                        <!-- Step 2 -->
+                        <div class="flow-step-card">
+                            <div class="flow-step-badge">2</div>
+                            <div class="flow-step-content">
+                                <div class="flow-step-title">📐 幾何学的正規化 (Normalization)</div>
+                                <div class="flow-step-desc">
+                                    手首を原点とし、中指の長さでスケールを統一。これにより、カメラ位置や手の大きさの差（ノイズ）が完全に相殺されます。
+                                </div>
+                                <div class="flow-data-io">
+                                    <span class="flow-io-label">IN:</span>
+                                    <span class="flow-io-val">生座標 (126D)</span>
+                                    <span class="flow-io-arrow">➔</span>
+                                    <span class="flow-io-label">OUT:</span>
+                                    <span class="flow-io-val">平行移動・縮尺不変座標 (126D)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flow-connector"></div>
+
+                        <!-- Step 3 -->
+                        <div class="flow-step-card">
+                            <div class="flow-step-badge">3</div>
+                            <div class="flow-step-content">
+                                <div class="flow-step-title">💠 アクション離散化 (Quantization)</div>
+                                <div class="flow-step-desc">
+                                    K-Meansを用いて、無限にある手の形を $K$ 個（例: 64個）の代表ポーズにクラスタリング。連続データをトークンIDに圧縮します。
+                                </div>
+                                <div class="flow-data-io">
+                                    <span class="flow-io-label">IN:</span>
+                                    <span class="flow-io-val">正規化座標 (126D)</span>
+                                    <span class="flow-io-arrow">➔</span>
+                                    <span class="flow-io-label">OUT:</span>
+                                    <span class="flow-io-val">ポーズトークン (ID: 0〜K-1)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flow-connector"></div>
+
+                        <!-- Step 4 -->
+                        <div class="flow-step-card">
+                            <div class="flow-step-badge">4</div>
+                            <div class="flow-step-content">
+                                <div class="flow-step-title">📤 VLAデータ出力 (Dataset Export)</div>
+                                <div class="flow-step-desc">
+                                    指示文プロンプトとポーズトークン系列を結合し、Hugging Faceフォーマットのデータセット（JSONL）を書き出します。
+                                </div>
+                                <div class="flow-data-io">
+                                    <span class="flow-io-label">IN:</span>
+                                    <span class="flow-io-val">指示文＋トークン系列</span>
+                                    <span class="flow-io-arrow">➔</span>
+                                    <span class="flow-io-label">OUT:</span>
+                                    <span class="flow-io-val">JSONLファイル (Few-shotデータ)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flow-connector"></div>
+
+                        <!-- Step 5 -->
+                        <div class="flow-step-card">
+                            <div class="flow-step-badge">5</div>
+                            <div class="flow-step-content">
+                                <div class="flow-step-title">🧠 Colab 4-bit LoRAファインチューニング</div>
+                                <div class="flow-step-desc">
+                                    Google ColabのGPUを使用。70億パラメータのベースモデルにLoRAパラメータを追加し、極小データで手話を学習させます。
+                                </div>
+                                <div class="flow-data-io">
+                                    <span class="flow-io-label">IN:</span>
+                                    <span class="flow-io-val">ベースモデル ＋ JSONL</span>
+                                    <span class="flow-io-arrow">➔</span>
+                                    <span class="flow-io-label">OUT:</span>
+                                    <span class="flow-io-val">学習済み LoRA アダプター重み</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flow-connector"></div>
+
+                        <!-- Step 6 -->
+                        <div class="flow-step-card">
+                            <div class="flow-step-badge">6</div>
+                            <div class="flow-step-content">
+                                <div class="flow-step-title">🤖 双方向手話アクション生成 (Inference)</div>
+                                <div class="flow-step-desc">
+                                    言語指示を入力すると、モデルの「L」アテンション層の推論によって、両手の動きを滑らかな時系列トークンとして自律生成します。
+                                </div>
+                                <div class="flow-data-io">
+                                    <span class="flow-io-label">IN:</span>
+                                    <span class="flow-io-val">「『りんご』を手話で表現して」</span>
+                                    <span class="flow-io-arrow">➔</span>
+                                    <span class="flow-io-label">OUT:</span>
+                                    <span class="flow-io-val">3Dモーションアニメーション</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1162,19 +1394,21 @@
 
         // ===== タブ切り替え =====
         async function switchTab(mode) {
-            currentMode = mode === "settings" ? currentMode : mode;
+            currentMode = (mode === "settings" || mode === "flow") ? currentMode : mode;
             
             // タブボタンのアクティブ化
             document.getElementById('tabBtnHiragana').classList.toggle('active', mode === 'hiragana');
             document.getElementById('tabBtnWords').classList.toggle('active', mode === 'words');
             document.getElementById('tabBtnSettings').classList.toggle('active', mode === 'settings');
+            document.getElementById('tabBtnFlow').classList.toggle('active', mode === 'flow');
 
             // パネルの表示非表示
             document.getElementById('panelHiragana').classList.toggle('active', mode === 'hiragana');
             document.getElementById('panelWords').classList.toggle('active', mode === 'words');
             document.getElementById('panelSettings').classList.toggle('active', mode === 'settings');
+            document.getElementById('panelFlow').classList.toggle('active', mode === 'flow');
 
-            if (mode !== "settings") {
+            if (mode !== "settings" && mode !== "flow") {
                 // バックエンドの動作モードを切り替え
                 try {
                     const response = await fetch(`/api/mode/${mode}`, { method: 'POST' });
