@@ -2,3 +2,5 @@ opencv-python
 mediapipe==0.10.21
 numpy
 pandas
+scikit-learn
+joblib
