@@ -101,88 +101,48 @@ def plot_training_results(epochs, losses, accuracies, approach="discrete"):
     """
     卒業論文にそのまま貼り付けられるクオリティの美しい学習曲線プロットを描画・保存します。
     """
-    plt.style.use(
-        "seaborn-v0_8-whitegrid"
-        if "seaborn-v0_8-whitegrid" in plt.style.available
-        else "default"
-    )
-
-    fig, ax1 = plt.subplots(figsize=(8, 5))
-
-    # 損失（Loss）のプロット（左目盛り、インディゴカラー）
-    color = "#4f46e5"
-    ax1.set_xlabel("Epoch", fontsize=12, fontweight="bold")
-    ax1.set_ylabel(
-        "Loss (Lower is better)", color=color, fontsize=12, fontweight="bold"
-    )
-    line1 = ax1.plot(
-        epochs,
-        losses,
-        marker="o",
-        color=color,
-        linewidth=2,
-        markersize=6,
-        label="Training Loss",
-    )
-    ax1.tick_params(axis="y", labelcolor=color)
-    ax1.grid(True, linestyle="--", alpha=0.5)
-
-    # 精度（Accuracy）のプロット（右目盛り、パープルカラー、離散アプローチのみ）
+    plt.rcParams['font.family'] = 'sans-serif'
+    plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial', 'Liberation Sans']
+    
+    fig, ax1 = plt.subplots(figsize=(9, 5.5), dpi=300)
+    
+    # 損失 (Loss) プロット - ディープインディゴ
+    color_loss = '#1e3a8a'
+    ax1.set_xlabel('Epoch', fontsize=13, fontweight='bold', labelpad=10)
+    ax1.set_ylabel('Training Loss', color=color_loss, fontsize=13, fontweight='bold', labelpad=10)
+    line1 = ax1.plot(epochs, losses, marker='o', color=color_loss, linewidth=2.5, markersize=8, label='Training Loss')
+    ax1.tick_params(axis='y', labelcolor=color_loss, labelsize=11)
+    ax1.tick_params(axis='x', labelsize=11)
+    ax1.grid(True, linestyle=':', alpha=0.6, color='#cbd5e1')
+    
     lines = line1
+    
+    # 精度 (Accuracy) プロット - ヴィヴィッドエメラルド (離散アプローチのみ)
     if approach == "discrete" and accuracies:
         ax2 = ax1.twinx()
-        color = "#9333ea"
-        ax2.set_ylabel(
-            "Reconstruction Accuracy (%)", color=color, fontsize=12, fontweight="bold"
-        )
-        line2 = ax2.plot(
-            epochs,
-            [acc * 100 for acc in accuracies],
-            marker="s",
-            linestyle="--",
-            color=color,
-            linewidth=2,
-            markersize=6,
-            label="Token Accuracy",
-        )
-        ax2.tick_params(axis="y", labelcolor=color)
-        ax2.grid(False)  # 右側の重畳グリッドを無効化
+        color_acc = '#10b981'
+        ax2.set_ylabel('Token Reconstruction Accuracy (%)', color=color_acc, fontsize=13, fontweight='bold', labelpad=10)
+        line2 = ax2.plot(epochs, [acc * 100 for acc in accuracies], marker='s', linestyle='--', color=color_acc, linewidth=2.5, markersize=8, label='Reconstruction Accuracy')
+        ax2.tick_params(axis='y', labelcolor=color_acc, labelsize=11)
         lines = line1 + line2
 
-    # 凡例の設定
+    # 凡例の装飾
     labels = [l.get_label() for l in lines]
-    ax1.legend(
-        lines,
-        labels,
-        loc="upper right",
-        frameon=True,
-        facecolor="white",
-        framealpha=0.9,
-        edgecolor="#e2e8f0",
-    )
-
-    title_suffix = (
-        "Discrete Pose Tokens" if approach == "discrete" else "Continuous Hand Actions"
-    )
-    plt.title(
-        f"VLA LoRA Training Curve ({title_suffix})",
-        fontsize=13,
-        fontweight="bold",
-        pad=15,
-    )
+    ax1.legend(lines, labels, loc='upper right', frameon=True, facecolor='white', edgecolor='#e2e8f0', framealpha=0.9, fontsize=11)
+    
+    title_suffix = "Discrete Action Tokens (Approach B)" if approach == "discrete" else "Continuous Kinematic Trajectory (Approach A)"
+    plt.title(f'VLA Model Fine-tuning Performance\n({title_suffix})', fontsize=14, fontweight='bold', pad=15)
     fig.tight_layout()
-
+    
     # 保存処理
     output_png = f"vla_training_{approach}.png"
     output_pdf = f"vla_training_{approach}.pdf"
-
-    plt.savefig(output_png, dpi=300)
-    plt.savefig(output_pdf, format="pdf", bbox_inches="tight")
+    
+    plt.savefig(output_png, dpi=300, bbox_inches='tight')
+    plt.savefig(output_pdf, format='pdf', bbox_inches='tight')
     plt.show()
-
-    print(
-        f"\n【グラフ保存完了】\n  - PNG: {output_png}\n  - PDF (論文印刷用): {output_pdf}"
-    )
+    
+    print(f"\n【グラフ保存完了】\n  - PNG: {output_png}\n  - PDF (論文印刷用): {output_pdf}")
 
 
 def train_on_colab(dataset_path, approach="discrete"):
