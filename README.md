@@ -216,20 +216,38 @@ Epoch 10/10 - Loss: 2.1035 - Accuracy: 63.00%
 
 ---
 
-### 4.4 Google Colabでの本番学習手順と重要事項
+### 4.4 Google Colabでの本番学習および比較実験の手順
 
-Google Colab を用いて、本物の大規模VLAモデル（**`openvla/openvla-7b`**）を 4-bit 量子化でロードし、LoRA チューニングを実行する手順です。
+Google Colab を用いて、本物の大規模VLAモデル（`openvla/openvla-7b`）を 4-bit 量子化でロードし、提案する各アプローチの比較評価を行うための手順を以下に示す。
 
-#### ❶ 個人アクセストークン（PAT）の登録
-プライベート（非公開）リポジトリのクローンを認証するため、以下のいずれかを行います。
-* **方法A (Secrets推奨)**: Colab の左メニューの「鍵マーク」から、Name: `GITHUB_TOKEN`、Value: `あなたのアクセストークン` を設定し、アクセス許可を ON にします。
-* **方法B (直接入力)**: ノートブック最初のセルの右側にある `DIRECT_TOKEN` パラメータフォームに直接トークンを貼り付けます。
+#### ❶ 手話動作データの収集（ローカル環境）
+1. ローカル環境にて Web UI（ダッシュボード）を起動する (`python src/ui/dashboard.py`)。
+2. 「ひらがな」または「手話単語」タブを開き、対象の動作につき **5回〜10回程度** 繰り返し手を動かしてレコーディングを実施する。
+3. パラメータ調整パネルで「一括前処理 (csv統合)」を実行し、正規化済みの特徴量座標ファイルを生成する。
+4. 続いて「アクション離散化 (K-Means)」、「VLAデータ出力」を順に実行し、`data/processed/vla_continuous.jsonl` および `vla_discrete.jsonl` をエクスポートする。
 
-#### ❷ 学習の開始
-[VLA_LoRA_Notebook.ipynb](file:///Users/reo/Desktop/5semester/研究/research-hand-sign/src/learning/VLA_LoRA_Notebook.ipynb) を Colab にアップロードし、上から実行します。
-* **モデルロード**: [bitsandbytes](https://huggingface.co/blog/4bit-transformers-bitsandbytes) を用いて、15GBを超える巨大な `openvla-7b` を 4-bit に圧縮してロードします。
-* **LoRA適用**: [PEFT](https://github.com/huggingface/peft) ライブラリを使い、モデルの `q_proj` などのAttentionモジュールにLoRAの追加パラメータを注入して学習を回します。
-* **成果物**: 完了すると、論文にそのまま使える高精細な学習曲線グラフ（`openvla_training_loss.png`）がエクスポートされます。
+#### ❷ 変更内容の GitHub への送信
+1. 生成された最新の JSONL ファイルとソースコードをリポジトリへ反映させるため、以下の Git コマンドを実行する。
+   ```bash
+   git add .
+   git commit -m "Update collected VLA datasets for sign language experiments"
+   git push origin main
+   ```
+
+#### ❸ 個人アクセストークン（PAT）の登録
+Colab 上で非公開リポジトリからデータセットをクローンするための認証を行う。
+* **方法A（Secrets推奨）**: Colab 左メニューの鍵アイコン（Secrets）から、Name: `GITHUB_TOKEN`、Value: `あなたのアクセストークン` を登録し、ノートブックへのアクセス許可を有効化する。
+* **方法B（直接入力）**: ノートブック先頭セルの `DIRECT_TOKEN` パラメータフォームにトークンを直接入力する。
+
+#### ❹ Colab 上での比較実験の実行
+1. [VLA_LoRA_Notebook.ipynb](file:///Users/reo/Desktop/5semester/研究/research-hand-sign/src/learning/VLA_LoRA_Notebook.ipynb) を Google Colab にアップロードする。
+2. 依存関係のインストールおよびモデルのロードのセル（❶〜❹）を順に実行する。
+3. ❺番目のセル「🧪 実験タイプの設定」にある `Experiment_Type` パラメータから、比較したい実験タイプを選択する。
+   * **`compare_data_format`**: 連続軌跡ビン予測（アプローチB） vs 離散ポーズトークン予測（アプローチC）
+   * **`compare_lora_rank`**: LoRA ランク 8（低容量） vs 32（高容量）
+   * **`compare_prompt_style`**: 識別IDのみ vs 日本語自然言語（セマンティクス効果）
+4. セルを実行すると、2つの条件に対する Few-shot ファインチューニングが自動で並列実行される。
+5. ❻番目のセルを実行すると、2つの学習曲線を重ね合わせた論文用の比較損失グラフ画像（例: `vla_comparison_compare_data_format.png`）が300dpiの高画質で自動出力・保存されるため、ダウンロードして研究資料に採用する。
 
 ---
 
