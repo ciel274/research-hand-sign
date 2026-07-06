@@ -1,4 +1,6 @@
 import asyncio
+
+# pyrefly: ignore [missing-import]
 import cv2
 import glob
 import os
@@ -6,13 +8,14 @@ import time
 import numpy as np
 import mediapipe as mp
 from fastapi import FastAPI, Response
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import threading
 
 # 前処理と学習スクリプトをインポート
 import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from learning.preprocess import normalize_hand_data, preprocess_all_raw_data
 from learning.model import load_model
@@ -24,7 +27,9 @@ app = FastAPI(title="Hand Sign Web Dashboard")
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 RAW_DATA_DIR = os.path.join(BASE_DIR, "data", "raw")
 PROCESSED_DATA_DIR = os.path.join(BASE_DIR, "data", "processed")
-MODEL_PATH = os.path.join(BASE_DIR, "src", "learning", "weights", "hand_sign_model_svm.joblib")
+MODEL_PATH = os.path.join(
+    BASE_DIR, "src", "learning", "weights", "hand_sign_model_svm.joblib"
+)
 TEMPLATE_PATH = os.path.join(BASE_DIR, "src", "ui", "templates", "index.html")
 
 os.makedirs(RAW_DATA_DIR, exist_ok=True)
@@ -42,6 +47,7 @@ state = {
     "is_stable": False,
     "text_buffer": "",
 }
+
 
 # カメラ＆MediaPipe制御用のクラス
 class CameraManager:
@@ -80,7 +86,7 @@ class CameraManager:
                     break
                 else:
                     cap.release()
-            
+
             if self.cap is None or not self.cap.isOpened():
                 print("エラー: 利用可能なカメラデバイスが見つかりませんでした。")
                 self.running = False
@@ -103,16 +109,32 @@ class CameraManager:
         CONFIDENCE_THRESHOLD = 0.85
         INPUT_COOLDOWN = 1.0
 
+        consecutive_failures = 0
+
         with self.mp_hands.Hands(
-            max_num_hands=2,
-            min_detection_confidence=0.7,
-            min_tracking_confidence=0.7
+            max_num_hands=2, min_detection_confidence=0.7, min_tracking_confidence=0.7
         ) as hands:
             while self.running:
                 success, frame = self.cap.read()
                 if not success:
-                    time.sleep(0.03)
+                    consecutive_failures += 1
+                    time.sleep(0.05)
+                    # 連続30フレーム(約1.5秒)失敗した場合、カメラ再接続を試みる
+                    if consecutive_failures >= 30:
+                        print("カメラからの映像取得に失敗し続けたため、再接続を試みます...")
+                        self.cap.release()
+                        for cam_id in [0, 1, 2]:
+                            cap = cv2.VideoCapture(cam_id)
+                            if cap.isOpened():
+                                self.cap = cap
+                                print(f"カメラの再接続に成功しました (カメラID: {cam_id})")
+                                consecutive_failures = 0
+                                break
+                            else:
+                                cap.release()
                     continue
+
+                consecutive_failures = 0
 
                 # 画面反転、RGB変換
                 frame = cv2.cvtColor(cv2.flip(frame, 1), cv2.COLOR_BGR2RGB)
@@ -127,14 +149,18 @@ class CameraManager:
 
                 if results.multi_hand_landmarks and results.multi_handedness:
                     has_hands = True
-                    for hand_landmarks, handedness in zip(results.multi_hand_landmarks, results.multi_handedness):
-                        self.mp_drawing.draw_landmarks(frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
-                        
+                    for hand_landmarks, handedness in zip(
+                        results.multi_hand_landmarks, results.multi_handedness
+                    ):
+                        self.mp_drawing.draw_landmarks(
+                            frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS
+                        )
+
                         label = handedness.classification[0].label
                         temp_coords = []
                         for landmark in hand_landmarks.landmark:
                             temp_coords.extend([landmark.x, landmark.y, landmark.z])
-                        
+
                         if label == "Right":
                             right_hand_data = temp_coords
                         elif label == "Left":
@@ -165,7 +191,7 @@ class CameraManager:
                     else:
                         self.stability_counter = 0
                         is_stable = False
-                    
+
                     if self.stability_counter >= STABILITY_FRAMES:
                         is_stable = True
                 else:
@@ -190,7 +216,11 @@ class CameraManager:
                         state["confidence"] = float(confidence)
 
                         if confidence >= CONFIDENCE_THRESHOLD:
-                            if pred_class != self.last_prediction or (current_time - self.last_input_time) > INPUT_COOLDOWN:
+                            if (
+                                pred_class != self.last_prediction
+                                or (current_time - self.last_input_time)
+                                > INPUT_COOLDOWN
+                            ):
                                 state["text_buffer"] += pred_class
                                 self.last_prediction = pred_class
                                 self.last_input_time = current_time
@@ -213,19 +243,23 @@ class CameraManager:
                         print(f"録画書き込みエラー: {e}")
 
                 # ストリーム用フレーム更新
-                _, jpeg = cv2.imencode('.jpg', frame)
+                _, jpeg = cv2.imencode(".jpg", frame)
                 self.latest_frame = jpeg.tobytes()
                 time.sleep(0.03)  # 約30fpsに制限
 
+
 camera = CameraManager()
+
 
 @app.on_event("startup")
 def startup_event():
     camera.start()
 
+
 @app.on_event("shutdown")
 def shutdown_event():
     camera.stop()
+
 
 # --- WEBルート ---
 @app.get("/", response_class=HTMLResponse)
@@ -234,19 +268,25 @@ def read_index():
         html_content = f.read()
     return HTMLResponse(content=html_content, status_code=200)
 
+
 # --- カメラ配信エンドポイント ---
 def gen(cam):
     while cam.running:
         if cam.latest_frame:
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + cam.latest_frame + b'\r\n')
+            yield (
+                b"--frame\r\n"
+                b"Content-Type: image/jpeg\r\n\r\n" + cam.latest_frame + b"\r\n"
+            )
         time.sleep(0.03)
+
 
 @app.get("/video_feed")
 def video_feed():
-    return StreamingResponse(gen(camera), media_type="multipart/x-mixed-replace; boundary=frame")
+    return Response(gen(camera), media_type="multipart/x-mixed-replace; boundary=frame")
+
 
 # --- API エンドポイント ---
+
 
 @app.get("/api/counts")
 def get_dataset_counts():
@@ -256,11 +296,52 @@ def get_dataset_counts():
     counts = {}
     # 全ての50音に対して0で初期化
     romaji_list = [
-        'a', 'i', 'u', 'e', 'o', 'ka', 'ki', 'ku', 'ke', 'ko',
-        'sa', 'si', 'su', 'se', 'so', 'ta', 'ti', 'tu', 'te', 'to',
-        'na', 'ni', 'nu', 'ne', 'no', 'ha', 'hi', 'hu', 'he', 'ho',
-        'ma', 'mi', 'mu', 'me', 'mo', 'ya', 'yu', 'yo', 'ra', 'ri',
-        'ru', 're', 'ro', 'wa', 'wo', 'nn'
+        "a",
+        "i",
+        "u",
+        "e",
+        "o",
+        "ka",
+        "ki",
+        "ku",
+        "ke",
+        "ko",
+        "sa",
+        "si",
+        "su",
+        "se",
+        "so",
+        "ta",
+        "ti",
+        "tu",
+        "te",
+        "to",
+        "na",
+        "ni",
+        "nu",
+        "ne",
+        "no",
+        "ha",
+        "hi",
+        "hu",
+        "he",
+        "ho",
+        "ma",
+        "mi",
+        "mu",
+        "me",
+        "mo",
+        "ya",
+        "yu",
+        "yo",
+        "ra",
+        "ri",
+        "ru",
+        "re",
+        "ro",
+        "wa",
+        "wo",
+        "nn",
     ]
     for ro in romaji_list:
         counts[ro] = 0
@@ -271,17 +352,18 @@ def get_dataset_counts():
         file_name = os.path.basename(file_path)
         base_name = file_name.replace("sign_language_", "").replace(".csv", "")
         parts = base_name.split("_")
-        
+
         # ラベルの特定
         if len(parts) > 1 and parts[-1].isdigit():
             label = "_".join(parts[:-1])
         else:
             label = base_name
-            
+
         if label in counts:
             counts[label] += 1
-            
+
     return counts
+
 
 @app.post("/api/record/start/{label}")
 def record_start(label: str):
@@ -290,9 +372,11 @@ def record_start(label: str):
     """
     state["is_recording"] = True
     state["active_label"] = label
-    
+
     # 自動ナンバリング処理
-    existing_files = glob.glob(os.path.join(RAW_DATA_DIR, f"sign_language_{label}_*.csv"))
+    existing_files = glob.glob(
+        os.path.join(RAW_DATA_DIR, f"sign_language_{label}_*.csv")
+    )
     indices = []
     for f in existing_files:
         name = os.path.basename(f)
@@ -301,11 +385,11 @@ def record_start(label: str):
             indices.append(idx)
         except ValueError:
             pass
-            
+
     next_idx = max(indices) + 1 if indices else 1
     file_name = f"sign_language_{label}_{next_idx}.csv"
     state["current_file_path"] = os.path.join(RAW_DATA_DIR, file_name)
-    
+
     # ヘッダーを作成
     with open(state["current_file_path"], "w") as f:
         header = ["timestamp"]
@@ -314,21 +398,25 @@ def record_start(label: str):
         for i in range(21):
             header.extend([f"L_joint_{i}_x", f"L_joint_{i}_y", f"L_joint_{i}_z"])
         f.write(",".join(header) + "\n")
-        
+
     print(f"録画開始: {file_name}")
     return {"status": "started", "file": file_name}
+
 
 @app.post("/api/record/stop")
 def record_stop():
     """
     録画を停止します。
     """
-    print(f"録画停止: {os.path.basename(state['current_file_path']) if state['current_file_path'] else 'None'}")
+    print(
+        f"録画停止: {os.path.basename(state['current_file_path']) if state['current_file_path'] else 'None'}"
+    )
     state["is_recording"] = False
     state["last_recorded_file"] = state["current_file_path"]  # 削除用に記録
     state["active_label"] = None
     state["current_file_path"] = None
     return {"status": "stopped"}
+
 
 @app.post("/api/record/delete_last")
 def delete_last_record():
@@ -341,10 +429,14 @@ def delete_last_record():
             os.remove(last_file)
             print(f"直近の録画を削除しました: {os.path.basename(last_file)}")
             state["last_recorded_file"] = None
-            return {"status": "success", "message": f"直近の録画を削除しました: {os.path.basename(last_file)}"}
+            return {
+                "status": "success",
+                "message": f"直近の録画を削除しました: {os.path.basename(last_file)}",
+            }
         except Exception as e:
             return {"status": "error", "message": f"削除エラー: {e}"}
     return {"status": "error", "message": "削除できる直近の録画データがありません。"}
+
 
 @app.post("/api/record/clear_class/{label}")
 def clear_class_records(label: str):
@@ -363,7 +455,11 @@ def clear_class_records(label: str):
             print(f"ファイル削除エラー ({f}): {e}")
     state["last_recorded_file"] = None
     print(f"'{label}' のデータを {deleted_count} 件削除しました。")
-    return {"status": "success", "message": f"'{label}' の録画データを {deleted_count} 件すべて削除しました。"}
+    return {
+        "status": "success",
+        "message": f"'{label}' の録画データを {deleted_count} 件すべて削除しました。",
+    }
+
 
 @app.get("/api/status")
 def get_status():
@@ -372,11 +468,13 @@ def get_status():
     """
     return state
 
+
 @app.post("/api/clear_text")
 def clear_text():
     state["text_buffer"] = ""
     camera.last_prediction = None
     return {"status": "cleared"}
+
 
 @app.post("/api/preprocess")
 def run_preprocess():
@@ -384,10 +482,17 @@ def run_preprocess():
     データセットの一括前処理を行います。
     """
     try:
-        preprocess_all_raw_data(raw_dir=RAW_DATA_DIR, output_csv=os.path.join(PROCESSED_DATA_DIR, "dataset.csv"))
-        return {"status": "success", "message": "一括前処理（データの正規化と統合）が完了しました！"}
+        preprocess_all_raw_data(
+            raw_dir=RAW_DATA_DIR,
+            output_csv=os.path.join(PROCESSED_DATA_DIR, "dataset.csv"),
+        )
+        return {
+            "status": "success",
+            "message": "一括前処理（データの正規化と統合）が完了しました！",
+        }
     except Exception as e:
         return {"status": "error", "message": f"前処理エラー: {e}"}
+
 
 @app.post("/api/train")
 def run_train():
@@ -398,15 +503,20 @@ def run_train():
         train_model(
             dataset_path=os.path.join(PROCESSED_DATA_DIR, "dataset.csv"),
             model_output_dir=os.path.join(BASE_DIR, "src", "learning", "weights"),
-            model_type="svm"
+            model_type="svm",
         )
         # 学習が終わったら推論モデルを最新の物にリロード
         camera.load_inference_model()
-        return {"status": "success", "message": "学習が完了し、最新のモデルが推論用にロードされました！"}
+        return {
+            "status": "success",
+            "message": "学習が完了し、最新のモデルが推論用にロードされました！",
+        }
     except Exception as e:
         return {"status": "error", "message": f"学習エラー: {e}"}
 
+
 if __name__ == "__main__":
     import uvicorn
+
     # uvicorn dashboard:app --host 0.0.0.0 --port 8000 --reload
     uvicorn.run(app, host="0.0.0.0", port=8000)
