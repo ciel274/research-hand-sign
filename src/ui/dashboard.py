@@ -6,7 +6,7 @@ import time
 import numpy as np
 import mediapipe as mp
 from fastapi import FastAPI, Response
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import threading
@@ -244,7 +244,7 @@ def gen(cam):
 
 @app.get("/video_feed")
 def video_feed():
-    return Response(gen(camera), media_type="multipart/x-mixed-replace; boundary=frame")
+    return StreamingResponse(gen(camera), media_type="multipart/x-mixed-replace; boundary=frame")
 
 # --- API エンドポイント ---
 
