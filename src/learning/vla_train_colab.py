@@ -126,12 +126,12 @@ def plot_training_results(epochs, losses, accuracies, approach="discrete"):
         ax2.tick_params(axis='y', labelcolor=color_acc, labelsize=11)
         lines = line1 + line2
 
-    # 凡例の装飾
+    # 凡例をグラフの外側（X軸の下部中央）に配置して重なりを完全に防ぐ
     labels = [l.get_label() for l in lines]
-    ax1.legend(lines, labels, loc='upper right', frameon=True, facecolor='white', edgecolor='#e2e8f0', framealpha=0.9, fontsize=11)
+    ax1.legend(lines, labels, loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2, frameon=True, facecolor='white', edgecolor='#e2e8f0', framealpha=0.9, fontsize=11)
     
     title_suffix = "Discrete Action Tokens (Approach B)" if approach == "discrete" else "Continuous Kinematic Trajectory (Approach A)"
-    plt.title(f'VLA Model Fine-tuning Performance\n({title_suffix})', fontsize=14, fontweight='bold', pad=15)
+    plt.title(f'VLA Model Fine-tuning Performance\n{title_suffix}', fontsize=14, fontweight='bold', pad=15)
     fig.tight_layout()
     
     # 保存処理
