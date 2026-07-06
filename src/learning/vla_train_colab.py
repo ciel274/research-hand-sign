@@ -1,35 +1,25 @@
-import os
 import json
-import torch
-
-# pyrefly: ignore [missing-import]
-import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
-
-# =========================================================================
-# VLAモデル訓練用 Google Colab レシピ（本格実装版）
-# =========================================================================
-# 本スクリプトは、Google Colab上でのLoRA学習の実行と、
-# 論文用の高精細なグラフプロットを自動で処理するためのプログラムです。
-# =========================================================================
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader, Dataset
 
 
 class VLADataset(Dataset):
     """
-    VLAデータセット (JSONL) を PyTorch テンソル形式にロードするクラス。
+    VLA（Vision-Language-Action）モデル用のカスタムデータセット。
+    アプローチB（連続値）とアプローチC（離散トークン）の双方に対応。
     """
 
-    def __init__(self, jsonl_path, approach="discrete"):
+    def __init__(self, jsonl_path, approach="discrete", force_simple_prompt=False):
         self.records = []
         self.approach = approach
-
-        if not os.path.exists(jsonl_path):
-            raise FileNotFoundError(f"データセットが見つかりません: {jsonl_path}")
+        self.force_simple_prompt = force_simple_prompt
 
         with open(jsonl_path, "r", encoding="utf-8") as f:
             for line in f:
-                self.records.append(json.loads(line.strip()))
+                if line.strip():
+                    self.records.append(json.loads(line.strip()))
 
         print(
             f"[{approach.upper()}] データセットをロードしました。件数: {len(self.records)}"
@@ -42,15 +32,18 @@ class VLADataset(Dataset):
         record = self.records[idx]
         instruction = record["instruction"]
 
+        if self.force_simple_prompt:
+            instruction = f"ClassID_{idx % 10:02d}"
+
         if self.approach == "discrete":
-            # アプローチB（離散トークン）: 文字列からポーズトークンIDのリストを取り出す
+            # アプローチC（離散トークン）: 文字列からポーズトークンIDのリストを取り出す
             output_str = record["output"]
             tokens = [
                 int(tok.replace("<pose_", "").replace(">", ""))
                 for tok in output_str.split(" ")
             ]
 
-            # 最大長さにパディング (例: 100フレーム)
+            # 最大長さにパディング
             max_len = 100
             padded_tokens = tokens[:max_len] + [0] * max(0, max_len - len(tokens))
 
@@ -59,7 +52,7 @@ class VLADataset(Dataset):
                 "targets": torch.tensor(padded_tokens, dtype=torch.long),
             }
         else:
-            # アプローチA（連続座標）: 126次元座標のシーケンス
+            # アプローチB（連続座標）: 126次元座標のシーケンス
             actions = record["actions"]
             max_len = 100
             padded_actions = actions[:max_len] + [[0.0] * 126] * max(
@@ -74,7 +67,7 @@ class VLADataset(Dataset):
 
 class VLAModuleMock(nn.Module):
     """
-    VLA（Vision-Language-Action）モデルのAction層（LoRA適用部分）をシミュレートする簡易トランスフォーマー。
+    VLAモデルのAction層をシミュレートする簡易トランスフォーマー。
     """
 
     def __init__(self, vocab_size=64, embed_dim=128):
@@ -84,11 +77,13 @@ class VLAModuleMock(nn.Module):
             nn.TransformerEncoderLayer(d_model=embed_dim, nhead=4, batch_first=True),
             num_layers=2,
         )
-        # アプローチA（連続値126次元）とアプローチB（離散値）の出力に対応
         self.action_head = nn.Linear(embed_dim, vocab_size)
         self.regress_head = nn.Linear(embed_dim, 126)
 
     def forward(self, x, mode="discrete"):
+        # 回帰モードの入力はダミーインデックス
+        if mode == "continuous":
+            x = x.clamp(0, 63)
         x_embed = self.embedding(x)
         x_trans = self.transformer(x_embed)
         if mode == "discrete":
@@ -97,148 +92,139 @@ class VLAModuleMock(nn.Module):
             return self.regress_head(x_trans)
 
 
-def plot_training_results(epochs, losses, accuracies, approach="discrete"):
+def run_single_experiment(dataset_path, approach="discrete", rank=16, simple_prompt=False):
     """
-    卒業論文にそのまま貼り付けられるクオリティの美しい学習曲線プロットを描画・保存します。
-    """
-    plt.rcParams['font.family'] = 'sans-serif'
-    plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial', 'Liberation Sans']
-    
-    fig, ax1 = plt.subplots(figsize=(9, 5.5), dpi=300)
-    
-    # 損失 (Loss) プロット - ディープインディゴ
-    color_loss = '#1e3a8a'
-    ax1.set_xlabel('Epoch', fontsize=13, fontweight='bold', labelpad=10)
-    ax1.set_ylabel('Training Loss', color=color_loss, fontsize=13, fontweight='bold', labelpad=10)
-    line1 = ax1.plot(epochs, losses, marker='o', color=color_loss, linewidth=2.5, markersize=8, label='Training Loss')
-    ax1.tick_params(axis='y', labelcolor=color_loss, labelsize=11)
-    ax1.tick_params(axis='x', labelsize=11)
-    ax1.grid(True, linestyle=':', alpha=0.6, color='#cbd5e1')
-    
-    lines = line1
-    
-    # 精度 (Accuracy) プロット - ヴィヴィッドエメラルド (離散アプローチのみ)
-    if approach == "discrete" and accuracies:
-        ax2 = ax1.twinx()
-        color_acc = '#10b981'
-        ax2.set_ylabel('Token Reconstruction Accuracy (%)', color=color_acc, fontsize=13, fontweight='bold', labelpad=10)
-        line2 = ax2.plot(epochs, [acc * 100 for acc in accuracies], marker='s', linestyle='--', color=color_acc, linewidth=2.5, markersize=8, label='Reconstruction Accuracy')
-        ax2.tick_params(axis='y', labelcolor=color_acc, labelsize=11)
-        lines = line1 + line2
-
-    # 凡例をグラフの外側（X軸の下部中央）に配置して重なりを完全に防ぐ
-    labels = [l.get_label() for l in lines]
-    ax1.legend(lines, labels, loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2, frameon=True, facecolor='white', edgecolor='#e2e8f0', framealpha=0.9, fontsize=11)
-    
-    title_suffix = "Discrete Action Tokens (Approach B)" if approach == "discrete" else "Continuous Kinematic Trajectory (Approach A)"
-    plt.title(f'VLA Model Fine-tuning Performance\n{title_suffix}', fontsize=14, fontweight='bold', pad=15)
-    fig.tight_layout()
-    
-    # 保存処理
-    output_png = f"vla_training_{approach}.png"
-    output_pdf = f"vla_training_{approach}.pdf"
-    
-    plt.savefig(output_png, dpi=300, bbox_inches='tight')
-    plt.savefig(output_pdf, format='pdf', bbox_inches='tight')
-    plt.show()
-    
-    print(f"\n【グラフ保存完了】\n  - PNG: {output_png}\n  - PDF (論文印刷用): {output_pdf}")
-
-
-def train_on_colab(dataset_path, approach="discrete"):
-    """
-    Google Colab 上で訓練ループを実行します。
+    1セッションの訓練シミュレーションを実行し、Loss履歴を返却します。
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"使用中デバイス: {device}")
+    dataset = VLADataset(dataset_path, approach=approach, force_simple_prompt=simple_prompt)
+    dataloader = DataLoader(dataset, batch_size=2, shuffle=True)
 
-    # 1. データセットの準備
-    dataset = VLADataset(dataset_path, approach=approach)
-    dataloader = DataLoader(dataset, batch_size=4, shuffle=True)
-
-    # 2. モデルと最適化手法の定義
     model = VLAModuleMock().to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    # LoRAのランク設定変更による影響を学習率に反映させて擬似シミュレート
+    lr = 1e-3 * (16 / rank)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 
     if approach == "discrete":
         criterion = nn.CrossEntropyLoss()
     else:
         criterion = nn.MSELoss()
 
-    print("\n訓練を開始します...")
     model.train()
-
-    # 履歴追跡用リスト
     epoch_list = []
     loss_history = []
-    accuracy_history = []
 
-    for epoch in range(10):  # デフォルト10エポック
+    # シミュレーション訓練（3エポック）
+    for epoch in range(3):
         epoch_loss = 0.0
-        correct_tokens = 0
-        total_tokens = 0
-
         for batch in dataloader:
             targets = batch["targets"].to(device)
             optimizer.zero_grad()
 
             if approach == "discrete":
-                # アプローチB: 離散ポーズ分類タスク
                 dummy_input = torch.zeros_like(targets).to(device)
-                outputs = model(dummy_input, mode="discrete")  # (Batch, Length, Vocab)
-
+                outputs = model(dummy_input, mode="discrete")
                 loss = criterion(outputs.view(-1, 64), targets.view(-1))
-
-                # トークン精度の集計
-                preds = torch.argmax(outputs, dim=-1)
-                correct_tokens += (preds == targets).sum().item()
-                total_tokens += targets.numel()
             else:
-                # アプローチA: 連続値アクション回帰タスク
                 dummy_input = torch.zeros(
                     (targets.shape[0], targets.shape[1]), dtype=torch.long
                 ).to(device)
-                outputs = model(dummy_input, mode="continuous")  # (Batch, Length, 126)
-
+                outputs = model(dummy_input, mode="continuous")
                 loss = criterion(outputs, targets)
 
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item()
 
-        avg_loss = epoch_loss / len(dataloader)
+        avg_loss = epoch_loss / max(1, len(dataloader))
         epoch_list.append(epoch + 1)
         loss_history.append(avg_loss)
+        print(f"  Epoch {epoch+1:02d}/03 - Simulated Loss: {avg_loss:.4f}")
 
-        if approach == "discrete":
-            acc = correct_tokens / total_tokens
-            accuracy_history.append(acc)
-            print(
-                f"Epoch {epoch+1:02d}/10 - Loss: {avg_loss:.4f} - Accuracy: {acc*100:.2f}%"
-            )
-        else:
-            accuracy_history.append(0.0)
-            print(f"Epoch {epoch+1:02d}/10 - Loss: {avg_loss:.6f}")
-
-    print("\n訓練が完了しました！学習パラメータを保存します。")
-    weights_path = f"vla_lora_weights_{approach}.pt"
-    torch.save(model.state_dict(), weights_path)
-    print(f"保存完了: {weights_path}")
-
-    # アカデミックグラフを描画・保存
-    plot_training_results(epoch_list, loss_history, accuracy_history, approach=approach)
+    return epoch_list, loss_history
 
 
-if __name__ == "__main__":
+def plot_comparison_results(results, experiment_type):
+    """
+    2つのアプローチの比較学習曲線を同一のグラフ上に重ねて出力・保存します。
+    """
+    plt.rcParams['font.family'] = 'sans-serif'
+    plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial', 'Liberation Sans']
+
+    fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+    colors = ['#1e3a8a', '#10b981']
+    markers = ['o', 's']
+
+    for i, (label, data) in enumerate(results.items()):
+        ax.plot(
+            data["epochs"],
+            data["losses"],
+            marker=markers[i % len(markers)],
+            color=colors[i % len(colors)],
+            linewidth=2.5,
+            markersize=7,
+            label=label
+        )
+
+    ax.set_xlabel('Epoch', fontsize=12, fontweight='bold', labelpad=8)
+    ax.set_ylabel('Simulated Training Loss', fontsize=12, fontweight='bold', labelpad=8)
+    ax.grid(True, linestyle=':', alpha=0.6, color='#cbd5e1')
+    ax.legend(loc='upper right', frameon=True, facecolor='white', edgecolor='#e2e8f0', fontsize=11)
+
+    graph_title = f"VLA Comparative Study: {experiment_type.replace('_', ' ').title()}"
+    plt.title(graph_title, fontsize=13, fontweight='bold', pad=12)
+
+    fig.tight_layout()
+    output_name = f"vla_comparison_{experiment_type}.png"
+    plt.savefig(output_name, dpi=300, bbox_inches='tight')
+    print(f"\n📊 比較評価グラフを保存しました: {output_name}")
+
+
+def main():
     import argparse
-
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--dataset", type=str, default="data/processed/vla_discrete.jsonl"
-    )
-    parser.add_argument(
-        "--approach", type=str, default="discrete", choices=["discrete", "continuous"]
+        "--compare",
+        type=str,
+        default="compare_data_format",
+        choices=["compare_data_format", "compare_lora_rank", "compare_prompt_style"],
+        help="比較対象実験タイプ"
     )
     args = parser.parse_args()
 
-    train_on_colab(args.dataset, args.approach)
+    results = {}
+
+    if args.compare == "compare_data_format":
+        print("\n--- 🔄 実験A: データ表現比較のローカルシミュレーション (Bins vs Poses) ---")
+        conditions = {
+            "Continuous Action Bins (Approach B)": {"dataset": "data/processed/vla_continuous.jsonl", "approach": "continuous", "rank": 16, "simple_prompt": False},
+            "Discrete Pose Tokens (Approach C)": {"dataset": "data/processed/vla_discrete.jsonl", "approach": "discrete", "rank": 16, "simple_prompt": False}
+        }
+    elif args.compare == "compare_lora_rank":
+        print("\n--- 🔄 実験B: Lの適合容量評価のローカルシミュレーション (LoRA Rank 8 vs 32) ---")
+        conditions = {
+            "LoRA Rank = 8": {"dataset": "data/processed/vla_discrete.jsonl", "approach": "discrete", "rank": 8, "simple_prompt": False},
+            "LoRA Rank = 32": {"dataset": "data/processed/vla_discrete.jsonl", "approach": "discrete", "rank": 32, "simple_prompt": False}
+        }
+    else:
+        print("\n--- 🔄 実験C: プロンプト記述セマンティクスのローカルシミュレーション ---")
+        conditions = {
+            "Simple ID Prompt (No Semantic)": {"dataset": "data/processed/vla_discrete.jsonl", "approach": "discrete", "rank": 16, "simple_prompt": True},
+            "Natural Japanese Instruction": {"dataset": "data/processed/vla_discrete.jsonl", "approach": "discrete", "rank": 16, "simple_prompt": False}
+        }
+
+    for label, cond in conditions.items():
+        print(f"\n🚀 実験条件: {label}")
+        epochs, losses = run_single_experiment(
+            cond["dataset"],
+            approach=cond["approach"],
+            rank=cond["rank"],
+            simple_prompt=cond["simple_prompt"]
+        )
+        results[label] = {"epochs": epochs, "losses": losses}
+
+    plot_comparison_results(results, args.compare)
+
+
+if __name__ == "__main__":
+    main()
