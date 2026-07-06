@@ -69,7 +69,22 @@ class CameraManager:
 
     def start(self):
         if not self.running:
-            self.cap = cv2.VideoCapture(0)
+            # 利用可能なカメラIDを自動探索 (0, 1, 2)
+            self.cap = None
+            for cam_id in [0, 1, 2]:
+                cap = cv2.VideoCapture(cam_id)
+                if cap.isOpened():
+                    self.cap = cap
+                    print(f"カメラの起動に成功しました (カメラID: {cam_id})")
+                    break
+                else:
+                    cap.release()
+            
+            if self.cap is None or not self.cap.isOpened():
+                print("エラー: 利用可能なカメラデバイスが見つかりませんでした。")
+                self.running = False
+                return
+
             self.running = True
             self.thread = threading.Thread(target=self.loop, daemon=True)
             self.thread.start()
