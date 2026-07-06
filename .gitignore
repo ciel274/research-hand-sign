@@ -10,7 +10,7 @@ __pycache__/
 # Large datasets & raw recording files (to be synced via Shared Google Drive instead of GitHub)
 data/raw/*.csv
 data/processed/*.csv
-data/processed/*.jsonl
+
 
 # Large model weights (saved in joblib/pytorch formats)
 src/learning/weights/*.joblib
