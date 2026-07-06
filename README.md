@@ -1,4 +1,4 @@
-# research-hand-sign
+# 研究
 
 小規模データ（Few-shot / Sample-efficient）での効率的学習による手話アクションの獲得・創出をする、高効率なVLA（Vision-Language-Action）学習フレームワークの研究プロジェクト。
 
