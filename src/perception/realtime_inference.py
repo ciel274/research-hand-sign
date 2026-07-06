@@ -3,6 +3,8 @@ import mediapipe as mp
 import numpy as np
 import os
 import time
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src.learning.preprocess import normalize_hand_data
 from src.learning.model import load_model
 

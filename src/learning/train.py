@@ -2,7 +2,9 @@ import os
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
-from .model import get_model, save_model
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from model import get_model, save_model
 
 def train_model(dataset_path="data/processed/dataset.csv", model_output_dir="src/learning/weights", model_type="svm"):
     """

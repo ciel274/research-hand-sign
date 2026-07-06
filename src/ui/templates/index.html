@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手話指文字データ収集 & 学習ダッシュボード</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0d10;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-color: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent-primary: #6366f1;
+            --accent-secondary: #a855f7;
+            --success: #10b981;
+            --danger: #ef4444;
+            --glass-blur: blur(12px);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(at 10% 20%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 90% 80%, rgba(168, 85, 247, 0.15) 0px, transparent 50%);
+        }
+
+        header {
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--card-border);
+            backdrop-filter: var(--glass-blur);
+            background: rgba(11, 13, 16, 0.5);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 2rem;
+            padding: 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* パネル共通 */
+        .panel {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 1.8rem;
+            backdrop-filter: var(--glass-blur);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #ffffff;
+            border-left: 4px solid var(--accent-primary);
+            padding-left: 10px;
+        }
+
+        /* 50音グリッド */
+        .char-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.8rem;
+        }
+
+        .char-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            user-select: none;
+        }
+
+        .char-card:hover {
+            transform: translateY(-4px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(99, 102, 241, 0.4);
+        }
+
+        .char-card.selected {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2));
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
+        }
+
+        .char-card .japanese {
+            font-size: 1.8rem;
+            font-weight: 700;
+            display: block;
+            margin-bottom: 0.2rem;
+        }
+
+        .char-card .romaji {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .char-card .count-badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 2px 6px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .char-card.selected .count-badge {
+            background: var(--accent-primary);
+            color: #ffffff;
+        }
+
+        /* カメラ & 録画コントロール */
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .camera-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: #000000;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--card-border);
+        }
+
+        .camera-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .record-overlay {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(239, 68, 68, 0.85);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            animation: pulse 1.5s infinite;
+            display: none;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.2rem;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 0.9rem 1.5rem;
+            border-radius: 12px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-color);
+            border: 1px solid var(--card-border);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* 学習管理パネル */
+        .training-results {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            max-height: 180px;
+            overflow-y: auto;
+            border: 1px solid var(--card-border);
+            color: #a7f3d0;
+        }
+
+        /* 推論結果インジケータ */
+        .inference-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            background: rgba(99, 102, 241, 0.08);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            margin-top: 1rem;
+        }
+
+        .inference-char {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        .inference-stat {
+            text-align: right;
+        }
+
+        .text-output-panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 1.2rem;
+            min-height: 80px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            border: 1px solid var(--card-border);
+            color: #ffffff;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>手話指文字 Web Dashboard</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted);">
+            Active Branch: <span style="color: var(--accent-primary); font-weight: 600;">dev-setup</span>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- 左カラム：50音グリッド -->
+        <div class="panel">
+            <div class="panel-title">
+                <span>50音データ収集グリッド</span>
+                <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">選択して撮影</span>
+            </div>
+            <div class="char-grid" id="charGrid">
+                <!-- JavaScriptで動的生成 -->
+            </div>
+        </div>
+
+        <!-- 右カラム：カメラと学習管理 -->
+        <div class="right-column">
+            <!-- カメラモニター -->
+            <div class="panel">
+                <div class="panel-title">ライブカメラモニター</div>
+                <div class="camera-wrapper">
+                    <img src="/video_feed" class="camera-feed" alt="Camera Feed">
+                    <div class="record-overlay" id="recordOverlay">
+                        <span style="width: 10px; height: 10px; background: white; border-radius: 50%;"></span>
+                        RECORDING...
+                    </div>
+                </div>
+
+                <div style="margin-top: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                    <div>選択中の文字: <span id="selectedCharLabel" style="font-weight: bold; color: var(--accent-secondary); font-size: 1.2rem;">--</span></div>
+                    <div id="velocityLabel" style="font-size: 0.85rem; color: var(--text-muted);">Speed: 0.00000</div>
+                </div>
+
+                <div class="controls">
+                    <button class="btn btn-primary" id="btnRecord" disabled>録画開始 (Space)</button>
+                    <button class="btn btn-secondary" id="btnClearText">テキストクリア</button>
+                </div>
+            </div>
+
+            <!-- 推論テキスト表示 -->
+            <div class="panel">
+                <div class="panel-title">文字起こし出力</div>
+                <div class="text-output-panel" id="textOutput">
+                    (文字入力はここに表示されます)
+                </div>
+                <div class="inference-display">
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">現在の予測</div>
+                        <div class="inference-char" id="predChar">--</div>
+                    </div>
+                    <div class="inference-stat">
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">信頼度 (Confidence)</div>
+                        <div style="font-weight: bold; color: var(--success); font-size: 1.1rem;" id="predConf">0.0%</div>
+                        <div id="stabilityBadge" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">MOVING</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 学習管理パネル -->
+            <div class="panel">
+                <div class="panel-title">モデル学習管理</div>
+                <div style="display: flex; gap: 1rem;">
+                    <button class="btn btn-secondary" id="btnPreprocess">一括前処理 (csv統合)</button>
+                    <button class="btn btn-primary" id="btnTrain">モデル学習実行</button>
+                </div>
+                <div class="training-results" id="trainingLogs">
+                    ログ出力領域。学習結果が表示されます。
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 50音のリスト定義（ひらがな, ローマ字ラベル）
+        const characters = [
+            { ja: 'あ', ro: 'a' }, { ja: 'い', ro: 'i' }, { ja: 'う', ro: 'u' }, { ja: 'え', ro: 'e' }, { ja: 'お', ro: 'o' },
+            { ja: 'か', ro: 'ka' }, { ja: 'き', ro: 'ki' }, { ja: 'く', ro: 'ku' }, { ja: 'け', ro: 'ke' }, { ja: 'こ', ro: 'ko' },
+            { ja: 'さ', ro: 'sa' }, { ja: 'し', ro: 'si' }, { ja: 'す', ro: 'su' }, { ja: 'せ', ro: 'se' }, { ja: 'そ', ro: 'so' },
+            { ja: 'た', ro: 'ta' }, { ja: 'ち', ro: 'ti' }, { ja: 'つ', ro: 'tu' }, { ja: 'て', ro: 'te' }, { ja: 'と', ro: 'to' },
+            { ja: 'な', ro: 'na' }, { ja: 'に', ro: 'ni' }, { ja: 'ぬ', ro: 'nu' }, { ja: 'ね', ro: 'ne' }, { ja: 'の', ro: 'no' },
+            { ja: 'は', ro: 'ha' }, { ja: 'ひ', ro: 'hi' }, { ja: 'ふ', ro: 'hu' }, { ja: 'へ', ro: 'he' }, { ja: 'ほ', ro: 'ho' },
+            { ja: 'ま', ro: 'ma' }, { ja: 'み', ro: 'mi' }, { ja: 'む', ro: 'mu' }, { ja: 'め', ro: 'me' }, { ja: 'も', ro: 'mo' },
+            { ja: 'や', ro: 'ya' }, { ja: '', ro: '' },    { ja: 'ゆ', ro: 'yu' }, { ja: '', ro: '' },    { ja: 'よ', ro: 'yo' },
+            { ja: 'ら', ro: 'ra' }, { ja: 'り', ro: 'ri' }, { ja: 'る', ro: 'ru' }, { ja: 'れ', ro: 're' }, { ja: 'ろ', ro: 'ro' },
+            { ja: 'わ', ro: 'wa' }, { ja: '', ro: '' },    { ja: 'を', ro: 'wo' }, { ja: '', ro: '' },    { ja: 'ん', ro: 'nn' }
+        ];
+
+        let selectedChar = null;
+        let isRecording = false;
+
+        // UI生成
+        const grid = document.getElementById('charGrid');
+        characters.forEach((char) => {
+            if (char.ja === '') {
+                // 空白カード (やゆよなどのプレースホルダー)
+                const empty = document.createElement('div');
+                empty.style.visibility = 'hidden';
+                grid.appendChild(empty);
+                return;
+            }
+
+            const card = document.createElement('div');
+            card.className = 'char-card';
+            card.dataset.romaji = char.ro;
+            card.innerHTML = `
+                <span class="count-badge" id="badge-${char.ro}">0</span>
+                <span class="japanese">${char.ja}</span>
+                <span class="romaji">${char.ro}</span>
+            `;
+            card.onclick = () => selectCharacter(char);
+            grid.appendChild(card);
+        });
+
+        // 収録数カウントの初期取得
+        function updateCounts() {
+            fetch('/api/counts')
+                .then(res => res.json())
+                .then(data => {
+                    Object.keys(data).forEach(ro => {
+                        const badge = document.getElementById(`badge-${ro}`);
+                        if (badge) {
+                            badge.innerText = data[ro];
+                        }
+                    });
+                });
+        }
+
+        // キャラクター選択
+        function selectCharacter(char) {
+            if (isRecording) return; // 録画中は切り替え不可
+            
+            document.querySelectorAll('.char-card').forEach(c => c.classList.remove('selected'));
+            
+            selectedChar = char;
+            const selectedCard = document.querySelector(`.char-card[data-romaji="${char.ro}"]`);
+            if (selectedCard) {
+                selectedCard.classList.add('selected');
+            }
+            
+            document.getElementById('selectedCharLabel').innerText = `${char.ja} (${char.ro})`;
+            document.getElementById('btnRecord').disabled = false;
+        }
+
+        // 録画状態のUI更新
+        function setRecordingState(active) {
+            isRecording = active;
+            const btn = document.getElementById('btnRecord');
+            const overlay = document.getElementById('recordOverlay');
+            
+            if (active) {
+                btn.innerText = "録画停止 (Space)";
+                btn.className = "btn btn-danger";
+                overlay.style.display = "flex";
+            } else {
+                btn.innerText = "録画開始 (Space)";
+                btn.className = "btn btn-primary";
+                overlay.style.display = "none";
+                updateCounts();
+            }
+        }
+
+        // 録画制御
+        function toggleRecording() {
+            if (!selectedChar) return;
+            
+            const targetUrl = isRecording ? '/api/record/stop' : `/api/record/start/${selectedChar.ro}`;
+            
+            fetch(targetUrl, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === "started") {
+                        setRecordingState(true);
+                    } else if (data.status === "stopped") {
+                        setRecordingState(false);
+                    }
+                });
+        }
+
+        // イベントリスナー
+        document.getElementById('btnRecord').onclick = toggleRecording;
+
+        // キーボード制御 (Spaceで録画、Backspaceで消去)
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                toggleRecording();
+            }
+        });
+
+        // テキストバッファと予測値の定期受信
+        setInterval(() => {
+            fetch('/api/status')
+                .then(res => res.json())
+                .then(data => {
+                    // 推論結果更新
+                    document.getElementById('predChar').innerText = data.pred_class || '--';
+                    document.getElementById('predConf').innerText = `${(data.confidence * 100).toFixed(1)}%`;
+                    document.getElementById('textOutput').innerText = data.text_buffer || '(文字入力はここに表示されます)';
+                    document.getElementById('velocityLabel').innerText = `Speed: ${data.velocity.toFixed(5)}`;
+                    
+                    const badge = document.getElementById('stabilityBadge');
+                    if (data.is_stable) {
+                        badge.innerText = "STABLE";
+                        badge.style.color = "var(--success)";
+                    } else {
+                        badge.innerText = "MOVING";
+                        badge.style.color = "var(--text-muted)";
+                    }
+                });
+        }, 100);
+
+        // テキストクリア
+        document.getElementById('btnClearText').onclick = () => {
+            fetch('/api/clear_text', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('textOutput').innerText = '(文字入力はここに表示されます)';
+                });
+        };
+
+        // 一括前処理
+        document.getElementById('btnPreprocess').onclick = () => {
+            const logs = document.getElementById('trainingLogs');
+            logs.innerText = "前処理を実行中...";
+            fetch('/api/preprocess', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    logs.innerText = data.message;
+                });
+        };
+
+        // モデル学習
+        document.getElementById('btnTrain').onclick = () => {
+            const logs = document.getElementById('trainingLogs');
+            logs.innerText = "モデルの訓練を開始します...";
+            fetch('/api/train', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    logs.innerText = data.message;
+                });
+        };
+
+        // 起動時にカウント取得
+        updateCounts();
+    </script>
+</body>
+</html>
