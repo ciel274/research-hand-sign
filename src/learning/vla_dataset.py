@@ -24,11 +24,17 @@ ROMAJI_TO_KANA = {
     "wa": "わ", "wo": "を", "nn": "ん"
 }
 
-def export_vla_datasets(n_clusters=64):
+def export_vla_datasets(n_clusters=64, mode="hiragana"):
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     RAW_DIR = os.path.join(BASE_DIR, "data", "raw")
     PROCESSED_DIR = os.path.join(BASE_DIR, "data", "processed")
     QUANTIZER_PATH = os.path.join(BASE_DIR, "src", "learning", "weights", f"pose_quantizer_{n_clusters}.joblib")
+
+    # モードに対応する探索先ディレクトリの指定
+    if mode == "hiragana":
+        target_dir = os.path.join(RAW_DIR, "hiragana")
+    else:
+        target_dir = os.path.join(RAW_DIR, "words")
 
     # 出力ファイルパス (クラスタ数をサフィックスに加える)
     continuous_jsonl_path = os.path.join(PROCESSED_DIR, "vla_continuous.jsonl")
@@ -37,14 +43,25 @@ def export_vla_datasets(n_clusters=64):
     default_discrete_path = os.path.join(PROCESSED_DIR, "vla_discrete.jsonl")
 
     # CSVファイルの探索
-    search_path = os.path.join(RAW_DIR, "sign_language_*.csv")
+    search_path = os.path.join(target_dir, "sign_language_*.csv")
     csv_files = glob.glob(search_path)
 
     if not csv_files:
-        print("エラー: 処理対象の生CSVファイルが data/raw/ 内に見つかりません。")
+        print(f"エラー: 処理対象の生CSVファイルが {target_dir} 内に見つかりません。")
         return
 
-    print(f"検出された生CSVファイル数: {len(csv_files)}")
+    print(f"検出された生CSVファイル数: {len(csv_files)} (モード: {mode})")
+
+    # カスタム単語の定義ロード (wordsモード用)
+    custom_words = {}
+    if mode == "words":
+        custom_words_path = os.path.join(BASE_DIR, "data", "custom_words.json")
+        if os.path.exists(custom_words_path):
+            try:
+                with open(custom_words_path, "r", encoding="utf-8") as f:
+                    custom_words = json.load(f)
+            except Exception as e:
+                print(f"カスタム単語定義ファイルの読み込みエラー: {e}")
 
     # 1. すべてのデータをロードし、フレーム単位で正規化する
     episodes_data = []
@@ -63,7 +80,10 @@ def export_vla_datasets(n_clusters=64):
         else:
             label_romaji = base_name
             
-        label_kana = ROMAJI_TO_KANA.get(label_romaji, label_romaji)
+        if mode == "hiragana":
+            label_kana = ROMAJI_TO_KANA.get(label_romaji, label_romaji)
+        else:
+            label_kana = custom_words.get(label_romaji, label_romaji)
 
         df = pd.read_csv(file_path)
         episode_frames = []
@@ -101,7 +121,10 @@ def export_vla_datasets(n_clusters=64):
     discrete_records = []
 
     for ep in episodes_data:
-        instruction = f"ひらがなの『{ep['kana']}』を手話（指文字）で表現してください。"
+        if mode == "hiragana":
+            instruction = f"ひらがなの『{ep['kana']}』を手話（指文字）で表現してください。"
+        else:
+            instruction = f"手話単語の『{ep['kana']}』を表現してください。"
 
         # --- アプローチA (連続値エクスポート) ---
         actions_list = ep["frames"].tolist()
@@ -147,7 +170,8 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="VLAデータセットのJSONLへの書き出し")
     parser.add_argument("--clusters", "-k", type=int, default=64, help="使用するK-Meansのクラスタ数 (デフォルト: 64)")
+    parser.add_argument("--mode", "-m", type=str, default="hiragana", choices=["hiragana", "words"], help="対象モード (hiragana / words)")
     args = parser.parse_args()
     
-    export_vla_datasets(n_clusters=args.clusters)
+    export_vla_datasets(n_clusters=args.clusters, mode=args.mode)
 

@@ -791,7 +791,7 @@ def run_vla_export(n_clusters: int = 64):
     discrete_path = os.path.join(PROCESSED_DATA_DIR, f"vla_discrete_{n_clusters}.jsonl")
     
     try:
-        export_vla_datasets(n_clusters=n_clusters)
+        export_vla_datasets(n_clusters=n_clusters, mode=mode)
         
         preview_continuous = ""
         preview_discrete = ""
