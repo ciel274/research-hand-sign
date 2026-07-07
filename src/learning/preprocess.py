@@ -33,9 +33,41 @@ def normalize_hand_data(hand_coords):
     return normalized_coords.flatten()
 
 
-def preprocess_csv(input_path, label):
+def rotate_landmarks_3d(coords_flat, roll, pitch, yaw):
     """
-    生データのCSVを読み込み、正規化を施したデータリスト（各行にlabelを付与）を返します。
+    フラット化された骨格座標 (63次元) を 3D 回転します。
+    手首(ID: 0)はすでに(0,0,0)なので、そのまま原点中心で回転します。
+    """
+    coords = coords_flat.reshape(21, 3)
+    if np.all(coords == 0.0):
+        return coords.flatten()
+
+    # 回転行列の作成
+    Rx = np.array([
+        [1, 0, 0],
+        [0, np.cos(roll), -np.sin(roll)],
+        [0, np.sin(roll), np.cos(roll)]
+    ])
+    Ry = np.array([
+        [np.cos(pitch), 0, np.sin(pitch)],
+        [0, 1, 0],
+        [-np.sin(pitch), 0, np.cos(pitch)]
+    ])
+    Rz = np.array([
+        [np.cos(yaw), -np.sin(yaw), 0],
+        [np.sin(yaw), np.cos(yaw), 0],
+        [0, 0, 1]
+    ])
+    R = Rz @ Ry @ Rx
+    
+    rotated_coords = coords @ R.T
+    return rotated_coords.flatten()
+
+
+def preprocess_csv(input_path, label, augment_factor=5):
+    """
+    生データのCSVを読み込み、正規化およびデータ拡張を施したデータリスト（各行にlabelを付与）を返します。
+    - augment_factor: 元データ1件につき、微小ランダム回転させたデータを何件生成するか
     """
     if not os.path.exists(input_path):
         print(f"エラー: ファイルが見つかりません {input_path}")
@@ -48,6 +80,10 @@ def preprocess_csv(input_path, label):
     r_cols = [f"R_joint_{i}_{coord}" for i in range(21) for coord in ["x", "y", "z"]]
     l_cols = [f"L_joint_{i}_{coord}" for i in range(21) for coord in ["x", "y", "z"]]
 
+    # 再現性のためのシード値（ファイルパスに基づく）を設定
+    seed = abs(hash(os.path.basename(input_path))) % (2**32)
+    rng = np.random.default_rng(seed)
+
     for idx, row in df.iterrows():
         # 右手と左手のデータを取得
         r_data = row[r_cols].values.astype(float)
@@ -57,9 +93,29 @@ def preprocess_csv(input_path, label):
         r_norm = normalize_hand_data(r_data)
         l_norm = normalize_hand_data(l_data)
 
-        # タイムスタンプ、正規化座標、ラベルを結合
-        new_row = [row["timestamp"]] + list(r_norm) + list(l_norm) + [label]
-        normalized_rows.append(new_row)
+        timestamp = row["timestamp"]
+
+        # 1. 元の正規化データ（Original）を格納
+        original_row = [timestamp] + list(r_norm) + list(l_norm) + [label]
+        normalized_rows.append(original_row)
+
+        # 2. データ拡張（微小回転）を適用したデータを格納
+        # ±15度をラジアンに変換 (15 * pi / 180 = 約 0.2618)
+        max_angle_rad = 15.0 * np.pi / 180.0
+
+        for i in range(augment_factor):
+            # 独立にロール、ピッチ、ヨーをランダム決定
+            r_roll, r_pitch, r_yaw = rng.uniform(-max_angle_rad, max_angle_rad, 3)
+            l_roll, l_pitch, l_yaw = rng.uniform(-max_angle_rad, max_angle_rad, 3)
+
+            # 3D回転を適用
+            r_norm_aug = rotate_landmarks_3d(r_norm, r_roll, r_pitch, r_yaw)
+            l_norm_aug = rotate_landmarks_3d(l_norm, l_roll, l_pitch, l_yaw)
+
+            # タイムスタンプに拡張情報を付与
+            aug_timestamp = f"{timestamp}_aug_{i+1}"
+            aug_row = [aug_timestamp] + list(r_norm_aug) + list(l_norm_aug) + [label]
+            normalized_rows.append(aug_row)
 
     return normalized_rows
 
