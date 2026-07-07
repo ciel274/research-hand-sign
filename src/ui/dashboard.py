@@ -731,6 +731,19 @@ def run_train():
         return {"status": "error", "message": f"学習エラー: {e}"}
 
 
+@app.get("/api/train/stats")
+def get_train_stats():
+    mode = state["task_mode"]
+    stats_path = os.path.join(PROCESSED_DATA_DIR, f"train_stats_{mode}.json")
+    if os.path.exists(stats_path):
+        try:
+            with open(stats_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            return {"status": "error", "message": f"読み込みエラー: {e}"}
+    return {"status": "not_trained", "message": "学習統計データはまだ存在しません。"}
+
+
 @app.post("/api/vla/quantize")
 def run_vla_quantize(n_clusters: int = 64):
     mode = state["task_mode"]

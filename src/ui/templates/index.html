@@ -1438,12 +1438,25 @@
             <!-- 学習管理パネル -->
             <div class="panel">
                 <div class="panel-title">モデル学習管理</div>
-                <div style="display: flex; gap: 0.5rem;">
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.8rem;">
                     <button class="btn btn-secondary" id="btnPreprocess" style="font-size: 0.8rem;">一括前処理 (csv統合)</button>
                     <button class="btn btn-primary" id="btnTrain" style="font-size: 0.8rem;">モデル学習実行</button>
                 </div>
-                <div class="training-results" id="trainingLogs">
+                <div class="training-results" id="trainingLogs" style="margin-bottom: 0.8rem;">
                     ログ出力領域。学習結果が表示されます。
+                </div>
+                
+                <!-- 新規追加: PCA散布図 & クラス精度チャート -->
+                <div id="learningChartsContainer" style="display: none; flex-direction: column; gap: 12px; border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 8px;">
+                    <div class="chart-container" style="display: block; background: rgba(255, 255, 255, 0.02); padding: 8px; border-radius: 8px;">
+                        <div class="chart-title" style="font-size: 0.75rem; font-weight: bold; color: var(--text-secondary); margin-bottom: 6px;">📊 骨格データの分布マップ (PCA 2D投影)</div>
+                        <canvas id="pcaChart" width="300" height="200" style="width: 100%; height: 200px; background: var(--bg-input); border-radius: 8px;"></canvas>
+                        <div style="font-size: 0.6rem; color: var(--text-muted); text-align: right; margin-top: 4px;">※各点が骨格フレーム、色は各文字に対応</div>
+                    </div>
+                    <div class="chart-container" style="display: block; background: rgba(255, 255, 255, 0.02); padding: 8px; border-radius: 8px;">
+                        <div class="chart-title" style="font-size: 0.75rem; font-weight: bold; color: var(--text-secondary); margin-bottom: 6px;">🎯 クラス別テスト正解率 (Accuracy)</div>
+                        <canvas id="classAccChart" width="300" height="180" style="width: 100%; height: 180px; background: var(--bg-input); border-radius: 8px;"></canvas>
+                    </div>
                 </div>
             </div>
 
@@ -1521,6 +1534,7 @@
             updateCounts();
             startStatusPolling();
             setupKeyboardShortcuts();
+            updateTrainStats(); // ページロード時に学習グラフを更新
             
             // UIイベントリスナー
             document.getElementById('btnRecord').addEventListener('click', toggleRecording);
@@ -1599,6 +1613,7 @@
                         deselectAll();
                         updateCounts();
                         updateVLAStatus();
+                        updateTrainStats(); // 新しいモードの学習グラフを再読込
                     }
                 } catch (e) {
                     console.error("モード切り替えエラー:", e);
@@ -2059,6 +2074,7 @@
                 if (res.status === 'success') {
                     logs.innerText = `🎉 ${res.message}\n` + logs.innerText;
                     showToast("モデルの学習に成功し、推論器をリロードしました！", "success");
+                    updateTrainStats(); // 新しい学習グラフを描画更新
                 } else {
                     logs.innerText = `❌ エラー: ${res.message}\n` + logs.innerText;
                     showToast(res.message, "error");
@@ -2281,6 +2297,165 @@
             ctx.moveTo(0, h - 5);
             ctx.lineTo(w, h - 5);
             ctx.stroke();
+        }
+
+        // ===== 学習結果の可視化グラフ描画 (PCA散布図 & クラス精度) =====
+        async function updateTrainStats() {
+            try {
+                const response = await fetch('/api/train/stats');
+                const stats = await response.json();
+
+                if (stats.status === 'not_trained') {
+                    document.getElementById('learningChartsContainer').style.display = "none";
+                    return;
+                }
+
+                document.getElementById('learningChartsContainer').style.display = "flex";
+
+                // PCA散布図の描画
+                if (stats.pca_points && stats.pca_points.length > 0) {
+                    drawPCAChart(stats.pca_points);
+                }
+
+                // クラス別精度の描画
+                if (stats.class_accuracies) {
+                    drawClassAccChart(stats.class_accuracies);
+                }
+            } catch (e) {
+                console.error("学習統計データの更新失敗:", e);
+            }
+        }
+
+        // PCA散布図を描画 (HTML5 Canvas)
+        function drawPCAChart(points) {
+            const canvas = document.getElementById('pcaChart');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            // 境界値の計算
+            const xs = points.map(p => p.x);
+            const ys = points.map(p => p.y);
+            const minX = Math.min(...xs), maxX = Math.max(...xs);
+            const minY = Math.min(...ys), maxY = Math.max(...ys);
+
+            const pad = 20;
+            const mapX = (x) => pad + ((x - minX) / (maxX - minX || 1)) * (w - 2 * pad);
+            const mapY = (y) => h - (pad + ((y - minY) / (maxY - minY || 1)) * (h - 2 * pad));
+
+            // グリッド線の描画
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+            ctx.lineWidth = 1;
+            for (let i = 1; i < 4; i++) {
+                // 縦線
+                ctx.beginPath();
+                ctx.moveTo(w * i / 4, 0);
+                ctx.lineTo(w * i / 4, h);
+                ctx.stroke();
+                // 横線
+                ctx.beginPath();
+                ctx.moveTo(0, h * i / 4);
+                ctx.lineTo(w, h * i / 4);
+                ctx.stroke();
+            }
+
+            // ラベルごとの配色ハッシュ
+            const colors = {};
+            const labels = [...new Set(points.map(p => p.label))];
+            labels.forEach((lbl, idx) => {
+                const hue = (idx * (360 / (labels.length || 1))) % 360;
+                colors[lbl] = `hsl(${hue}, 80%, 60%)`;
+            });
+
+            // データプロット
+            points.forEach(p => {
+                const cx = mapX(p.x);
+                const cy = mapY(p.y);
+
+                ctx.beginPath();
+                ctx.arc(cx, cy, 4, 0, 2 * Math.PI);
+                ctx.fillStyle = colors[p.label] || "#6366f1";
+                ctx.fill();
+                ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
+                ctx.stroke();
+            });
+
+            // 簡易ラベル配置 (各クラスの代表点付近にテキストを描画)
+            labels.forEach(lbl => {
+                const classPoints = points.filter(p => p.label === lbl);
+                if (classPoints.length > 0) {
+                    const avgX = classPoints.reduce((sum, p) => sum + p.x, 0) / classPoints.length;
+                    const avgY = classPoints.reduce((sum, p) => sum + p.y, 0) / classPoints.length;
+                    
+                    const tx = mapX(avgX);
+                    const ty = mapY(avgY);
+
+                    // ラベル文字の背景シャドウ
+                    ctx.font = "bold 9px sans-serif";
+                    ctx.fillStyle = "rgba(10, 10, 16, 0.75)";
+                    ctx.fillText(lbl.toUpperCase(), tx - 4, ty + 3);
+                    
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillText(lbl.toUpperCase(), tx - 5, ty + 2);
+                }
+            });
+        }
+
+        // クラス別精度バーチャートを描画 (HTML5 Canvas)
+        function drawClassAccChart(accuracies) {
+            const canvas = document.getElementById('classAccChart');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            const keys = Object.keys(accuracies);
+            if (keys.length === 0) return;
+
+            const rowHeight = h / (keys.length || 1);
+            const fontHeight = Math.min(10, rowHeight - 4);
+
+            keys.forEach((key, idx) => {
+                const acc = accuracies[key];
+                const y = idx * rowHeight;
+                const barW = Math.max(5, (w - 70) * acc);
+
+                // ラベル名変換 (hiragana の場合は日本語表示)
+                let dispName = key;
+                if (currentMode === "hiragana" && ROMAJI_TO_KANA[key]) {
+                    dispName = ROMAJI_TO_KANA[key];
+                }
+
+                // バー背景
+                ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+                ctx.fillRect(50, y + 2, w - 70, rowHeight - 4);
+
+                // バーの描画（精度に応じて色変化）
+                let barColor = "rgba(239, 68, 68, 0.85)"; // 危険 (赤)
+                if (acc >= 0.99) {
+                    barColor = "rgba(16, 185, 129, 0.85)"; // 優秀 (緑)
+                } else if (acc >= 0.85) {
+                    barColor = "rgba(99, 102, 241, 0.85)"; // 良好 (青)
+                } else if (acc >= 0.6) {
+                    barColor = "rgba(245, 158, 11, 0.85)"; // 注意 (黄)
+                }
+
+                ctx.fillStyle = barColor;
+                ctx.fillRect(50, y + 2, barW, rowHeight - 4);
+
+                // テキスト（クラス名）
+                ctx.fillStyle = "var(--text-primary)";
+                ctx.font = `bold ${fontHeight}px sans-serif`;
+                ctx.textAlign = "right";
+                ctx.fillText(dispName, 42, y + rowHeight / 2 + fontHeight / 3);
+
+                // テキスト（％数値）
+                ctx.fillStyle = acc >= 0.85 ? "var(--success)" : "var(--text-muted)";
+                ctx.font = `tabular-nums ${fontHeight}px sans-serif`;
+                ctx.textAlign = "left";
+                ctx.fillText(`${(acc * 100).toFixed(0)}%`, w - 18, y + rowHeight / 2 + fontHeight / 3);
+            });
         }
 
         // ===== キーボードショートカット =====
