@@ -2326,12 +2326,33 @@
             }
         }
 
+        // High-DPI (Retina) ディスプレイに対応した高精細 Canvas 設定用ヘルパー
+        function setupCrispCanvas(canvas, baseHeight) {
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            
+            // 親コンテナにおけるレイアウト上の実際の表示サイズを取得
+            const rect = canvas.getBoundingClientRect();
+            const displayWidth = rect.width || canvas.clientWidth || 300;
+            const displayHeight = baseHeight;
+            
+            // バッキングストアのピクセル解像度を高DPI化してドットの粗さを防ぐ
+            canvas.width = displayWidth * dpr;
+            canvas.height = displayHeight * dpr;
+            
+            // 表示サイズ（CSS高さ）を固定
+            canvas.style.height = displayHeight + 'px';
+            
+            // 描画倍率を設定（これにより通常の座標値での描画が高解像度で描写されます）
+            ctx.scale(dpr, dpr);
+            
+            return { ctx, w: displayWidth, h: displayHeight };
+        }
+
         // PCA散布図を描画 (HTML5 Canvas)
         function drawPCAChart(points) {
             const canvas = document.getElementById('pcaChart');
-            const ctx = canvas.getContext('2d');
-            const w = canvas.width;
-            const h = canvas.height;
+            const { ctx, w, h } = setupCrispCanvas(canvas, 200);
             ctx.clearRect(0, 0, w, h);
 
             // 境界値の計算
@@ -2378,6 +2399,7 @@
                 ctx.fillStyle = colors[p.label] || "#6366f1";
                 ctx.fill();
                 ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
+                ctx.lineWidth = 1;
                 ctx.stroke();
             });
 
@@ -2405,9 +2427,7 @@
         // クラス別精度バーチャートを描画 (HTML5 Canvas)
         function drawClassAccChart(accuracies) {
             const canvas = document.getElementById('classAccChart');
-            const ctx = canvas.getContext('2d');
-            const w = canvas.width;
-            const h = canvas.height;
+            const { ctx, w, h } = setupCrispCanvas(canvas, 180);
             ctx.clearRect(0, 0, w, h);
 
             const keys = Object.keys(accuracies);
