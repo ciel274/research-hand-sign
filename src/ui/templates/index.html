@@ -1379,7 +1379,7 @@
             </div>
 
             <!-- 文字起こし出力パネル (左下固定) -->
-            <div class="panel">
+            <div class="panel" id="panelTextOutput">
                 <div class="panel-title">文字起こし出力領域</div>
                 <div class="text-output-panel" id="textOutput">
                     (文字はここに表示されます)
@@ -1579,12 +1579,14 @@
                     // 一時停止を実行
                     await toggleCameraActive();
                 }
+                document.getElementById('panelTextOutput').style.display = 'none';
             } else {
                 // 他のタブに戻ったとき、以前カメラがONだったなら自動再開
                 if (wasCameraActiveBeforeFlow && !cameraActive) {
                     wasCameraActiveBeforeFlow = false;
                     await toggleCameraActive();
                 }
+                document.getElementById('panelTextOutput').style.display = 'block';
             }
 
             if (mode !== "settings" && mode !== "flow") {
