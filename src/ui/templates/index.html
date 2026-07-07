@@ -1866,7 +1866,7 @@
 
         // ===== ラベル選択 =====
         function selectLabel(label, element) {
-            if (state.is_recording) return;
+            if (recordInterval) return;
 
             if (selectedElement) {
                 selectedElement.classList.remove('selected');
