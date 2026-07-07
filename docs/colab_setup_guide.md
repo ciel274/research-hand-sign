@@ -45,12 +45,11 @@ REPO_NAME = "research-hand-sign"
 ### ❸ 依存パッケージのインストール
 ```python
 %cd /content/research-hand-sign
-# NumPy 2.x系によるバイナリ互換エラーを防ぐため、1.x系を強制インストール
-!pip install "numpy<2.0.0" --force-reinstall
-!pip install -r requirements.txt
+# 全パッケージの依存関係を NumPy 1.x系かつ Transformers 4.x系で一括解決してインストール
+!pip install "numpy<2.0.0" "transformers<5.0.0" -r requirements.txt peft accelerate datasets matplotlib bitsandbytes --force-reinstall
 ```
 > [!IMPORTANT]
-> **重要**: NumPyを再インストールした後は、Google Colabのメニューバーから **「ランタイム」➔「セッションを再起動」** を必ず実行してください。再起動後、次のステップから進めてください。
+> **重要**: インストール後は、Google Colabのメニューバーから **「ランタイム」➔「セッションを再起動」** を必ず実行してください。再起動後、次のステップから進めてください。
 
 ### ❹ データのシンボリックリンク（紐付け）
 GitHubから落としたコードに対して、共有Google Drive内の大容量データフォルダを接続します。
