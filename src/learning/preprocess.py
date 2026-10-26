@@ -33,6 +33,91 @@ def normalize_hand_data(hand_coords):
     return normalized_coords.flatten()
 
 
+def add_extra_geometric_features(normalized_coords_flat):
+    """
+    すでに正規化（または回転）された63次元の相対座標から、
+    56次元の追加幾何特徴量（指先間距離、3D関節角度、手のひら法線、仮想格子補間点）を算出し、
+    結合して119次元にして返します。
+    """
+    coords = normalized_coords_flat.reshape(21, 3)
+    if np.all(coords == 0.0):
+        return np.zeros(119)
+        
+    extra_features = []
+    fingertips = [4, 8, 12, 16, 20]
+    
+    # (a) 指先間の相互距離 (10ペア)
+    for i in range(len(fingertips)):
+        for j in range(i + 1, len(fingertips)):
+            dist = np.linalg.norm(coords[fingertips[i]] - coords[fingertips[j]])
+            extra_features.append(dist)
+            
+    # (b) 各指先から手首(0)までの距離 (5次元)
+    for tip in fingertips:
+        dist = np.linalg.norm(coords[tip] - coords[0])
+        extra_features.append(dist)
+        
+    # (c) 各指先からベースジョイント(2, 5, 9, 13, 17)までの距離 (5次元)
+    mcp_joints = [2, 5, 9, 13, 17]
+    for tip, mcp in zip(fingertips, mcp_joints):
+        dist = np.linalg.norm(coords[tip] - coords[mcp])
+        extra_features.append(dist)
+
+    # (d) 3D関節曲げ角度 (15次元)
+    triplets = [
+        # 親指
+        (0, 1, 2), (1, 2, 3), (2, 3, 4),
+        # 人差し指
+        (0, 5, 6), (5, 6, 7), (6, 7, 8),
+        # 中指
+        (0, 9, 10), (9, 10, 11), (10, 11, 12),
+        # 薬指
+        (0, 13, 14), (13, 14, 15), (14, 15, 16),
+        # 小指
+        (0, 17, 18), (17, 18, 19), (18, 19, 20)
+    ]
+    for a, b, c in triplets:
+        u = coords[a] - coords[b]
+        v = coords[c] - coords[b]
+        norm_u = np.linalg.norm(u)
+        norm_v = np.linalg.norm(v)
+        if norm_u > 1e-7 and norm_v > 1e-7:
+            cos_angle = np.dot(u, v) / (norm_u * norm_v)
+            cos_angle = np.clip(cos_angle, -1.0, 1.0)
+            angle = np.arccos(cos_angle)
+        else:
+            angle = 0.0
+        extra_features.append(angle)
+
+    # (e) 手のひらの3D法線ベクトル (3次元)
+    v1 = coords[5] - coords[0]
+    v2 = coords[17] - coords[0]
+    normal = np.cross(v1, v2)
+    norm_n = np.linalg.norm(normal)
+    if norm_n > 1e-7:
+        normal = normal / norm_n
+    else:
+        normal = np.zeros(3)
+    extra_features.extend(list(normal))
+
+    # (f) 仮想格子補間点 (18次元: 5個のベース中点(15次元) + 手のひら中心(3次元))
+    for mcp in mcp_joints:
+        midpoint = (coords[0] + coords[mcp]) / 2.0
+        extra_features.extend(list(midpoint))
+    palm_center = (coords[0] + coords[5] + coords[17]) / 3.0
+    extra_features.extend(list(palm_center))
+
+    return np.concatenate([normalized_coords_flat, np.array(extra_features)])
+
+
+def extract_hand_features(hand_coords):
+    """
+    手の生座標(63次元)から正規化座標と追加の幾何幾何特徴量（距離・3D関節角度・法線・仮想格子点）を抽出し、119次元の特徴ベクトルを生成します。
+    """
+    norm_coords = normalize_hand_data(hand_coords)
+    return add_extra_geometric_features(norm_coords)
+
+
 def rotate_landmarks_3d(coords_flat, roll, pitch, yaw):
     """
     フラット化された骨格座標 (63次元) を 3D 回転します。
@@ -89,32 +174,47 @@ def preprocess_csv(input_path, label, augment_factor=5):
         r_data = row[r_cols].values.astype(float)
         l_data = row[l_cols].values.astype(float)
 
-        # それぞれ正規化
-        r_norm = normalize_hand_data(r_data)
-        l_norm = normalize_hand_data(l_data)
+        # それぞれの幾何学特徴量を抽出 (83次元)
+        r_feats = extract_hand_features(r_data)
+        l_feats = extract_hand_features(l_data)
 
         timestamp = row["timestamp"]
 
-        # 1. 元の正規化データ（Original）を格納
-        original_row = [timestamp] + list(r_norm) + list(l_norm) + [label]
+        # 1. 元の正規化＋特徴量データ（Original）を格納
+        original_row = [timestamp] + list(r_feats) + list(l_feats) + [label]
         normalized_rows.append(original_row)
 
         # 2. データ拡張（微小回転）を適用したデータを格納
-        # ±15度をラジアンに変換 (15 * pi / 180 = 約 0.2618)
         max_angle_rad = 15.0 * np.pi / 180.0
 
         for i in range(augment_factor):
-            # 独立にロール、ピッチ、ヨーをランダム決定
+            # 独立にロール、ピッチ、ヨーをランダム決定 (±15度)
             r_roll, r_pitch, r_yaw = rng.uniform(-max_angle_rad, max_angle_rad, 3)
             l_roll, l_pitch, l_yaw = rng.uniform(-max_angle_rad, max_angle_rad, 3)
 
-            # 3D回転を適用
+            # 回転はベースの63次元座標に対して適用
+            r_norm = normalize_hand_data(r_data)
+            l_norm = normalize_hand_data(l_data)
             r_norm_aug = rotate_landmarks_3d(r_norm, r_roll, r_pitch, r_yaw)
             l_norm_aug = rotate_landmarks_3d(l_norm, l_roll, l_pitch, l_yaw)
 
+            # スケール・微小ノイズ拡張 (±8%のサイズ変化と微少カメラノイズのシミュレーション)
+            if np.any(r_norm_aug != 0.0):
+                r_scale = rng.uniform(0.92, 1.08)
+                r_noise = rng.normal(0.0, 0.005, size=r_norm_aug.shape)
+                r_norm_aug = r_norm_aug * r_scale + r_noise
+            if np.any(l_norm_aug != 0.0):
+                l_scale = rng.uniform(0.92, 1.08)
+                l_noise = rng.normal(0.0, 0.005, size=l_norm_aug.shape)
+                l_norm_aug = l_norm_aug * l_scale + l_noise
+
+            # 拡張後の座標から幾何学特徴量を計算して119次元化
+            r_feats_aug = add_extra_geometric_features(r_norm_aug)
+            l_feats_aug = add_extra_geometric_features(l_norm_aug)
+
             # タイムスタンプに拡張情報を付与
             aug_timestamp = f"{timestamp}_aug_{i+1}"
-            aug_row = [aug_timestamp] + list(r_norm_aug) + list(l_norm_aug) + [label]
+            aug_row = [aug_timestamp] + list(r_feats_aug) + list(l_feats_aug) + [label]
             normalized_rows.append(aug_row)
 
     return normalized_rows
@@ -142,12 +242,18 @@ def preprocess_all_raw_data(
 
     all_data = []
 
-    # 正規化データのヘッダーを作成
+    # 幾何学特徴量（距離・3D角度・法線・仮想格子点）を追加した新しいヘッダーを作成 (合計238次元)
     header = ["timestamp"]
+    # 右手の座標(63次元) + 幾何特徴量(56次元)
     for i in range(21):
         header.extend([f"R_joint_{i}_x", f"R_joint_{i}_y", f"R_joint_{i}_z"])
+    for i in range(56):
+        header.append(f"R_extra_{i}")
+    # 左手の座標(63次元) + 幾何特徴量(56次元)
     for i in range(21):
         header.extend([f"L_joint_{i}_x", f"L_joint_{i}_y", f"L_joint_{i}_z"])
+    for i in range(56):
+        header.append(f"L_extra_{i}")
     header.append("label")
 
     for file_path in csv_files:

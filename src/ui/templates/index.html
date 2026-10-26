@@ -3,1515 +3,908 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>手話データ収集 &amp; VLA学習ダッシュボード (研究モデル比較版)</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <title>手話動作解析・VLA実験システム</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        /* ===== Theme Variables ===== */
         :root {
-            --transition-speed: 0.3s;
-        }
-
-        [data-theme="dark"] {
-            --bg-primary: #0c0e14;
-            --bg-secondary: #12151e;
-            --bg-card: rgba(255, 255, 255, 0.03);
-            --bg-card-hover: rgba(255, 255, 255, 0.06);
-            --bg-input: rgba(255, 255, 255, 0.05);
-            --border-color: rgba(255, 255, 255, 0.08);
-            --border-accent: rgba(255, 255, 255, 0.12);
-            --text-primary: #f1f5f9;
+            --bg-base: #0f141c;
+            --bg-surface: #18202c;
+            --bg-surface-elevated: #212c3d;
+            --bg-input: #121824;
+            --border: #2b384e;
+            --border-focus: #4b6cb7;
+            --text-primary: #e6edf3;
             --text-secondary: #94a3b8;
             --text-muted: #64748b;
-            --accent-1: #6366f1;
-            --accent-2: #a855f7;
-            --accent-3: #818cf8;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
             --success: #10b981;
-            --danger: #ef4444;
             --warning: #f59e0b;
-            --shadow-color: rgba(0, 0, 0, 0.4);
-            --glass-bg: rgba(12, 14, 20, 0.7);
-            --camera-bg: #000;
-            --gradient-bg-1: rgba(99, 102, 241, 0.12);
-            --gradient-bg-2: rgba(168, 85, 247, 0.08);
-            --badge-bg: rgba(255, 255, 255, 0.08);
-            --badge-text: #94a3b8;
-            --log-bg: rgba(0, 0, 0, 0.3);
-            --log-text: #a7f3d0;
-            --toast-bg: rgba(17, 24, 39, 0.95);
+            --danger: #ef4444;
+            --font-sans: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --radius-sm: 4px;
+            --radius-md: 6px;
+            --radius-lg: 8px;
         }
 
-        [data-theme="light"] {
-            --bg-primary: #f8fafc;
-            --bg-secondary: #ffffff;
-            --bg-card: rgba(255, 255, 255, 0.8);
-            --bg-card-hover: rgba(255, 255, 255, 0.95);
-            --bg-input: rgba(0, 0, 0, 0.04);
-            --border-color: rgba(0, 0, 0, 0.08);
-            --border-accent: rgba(0, 0, 0, 0.12);
-            --text-primary: #1e293b;
+        html[data-theme="light"] {
+            --bg-base: #f1f5f9;
+            --bg-surface: #ffffff;
+            --bg-surface-elevated: #f8fafc;
+            --bg-input: #f1f5f9;
+            --border: #cbd5e1;
+            --border-focus: #3b82f6;
+            --text-primary: #0f172a;
             --text-secondary: #475569;
             --text-muted: #94a3b8;
-            --accent-1: #4f46e5;
-            --accent-2: #9333ea;
-            --accent-3: #6366f1;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
             --success: #059669;
-            --danger: #dc2626;
             --warning: #d97706;
-            --shadow-color: rgba(0, 0, 0, 0.08);
-            --glass-bg: rgba(255, 255, 255, 0.85);
-            --camera-bg: #1e293b;
-            --gradient-bg-1: rgba(79, 70, 229, 0.06);
-            --gradient-bg-2: rgba(147, 51, 234, 0.04);
-            --badge-bg: rgba(0, 0, 0, 0.06);
-            --badge-text: #64748b;
-            --log-bg: rgba(0, 0, 0, 0.04);
-            --log-text: #065f46;
-            --toast-bg: rgba(255, 255, 255, 0.95);
+            --danger: #dc2626;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Inter', sans-serif;
         }
 
         body {
-            background-color: var(--bg-primary);
+            font-family: var(--font-sans);
+            background-color: var(--bg-base);
             color: var(--text-primary);
+            line-height: 1.5;
             min-height: 100vh;
-            overflow-x: hidden;
-            transition: background-color var(--transition-speed), color var(--transition-speed);
-            background-image:
-                radial-gradient(at 10% 20%, var(--gradient-bg-1) 0px, transparent 50%),
-                radial-gradient(at 90% 80%, var(--gradient-bg-2) 0px, transparent 50%);
+            display: flex;
+            flex-direction: column;
         }
 
-        /* ===== Header ===== */
+        /* ヘッダー */
         header {
-            padding: 1rem 2rem;
+            background-color: var(--bg-surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0.75rem 1.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid var(--border-color);
-            backdrop-filter: blur(16px);
-            background: var(--glass-bg);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            transition: background var(--transition-speed), border-color var(--transition-speed);
         }
 
-        .header-left {
+        .header-brand {
             display: flex;
-            align-items: center;
-            gap: 1.2rem;
+            align-items: baseline;
+            gap: 0.75rem;
         }
 
-        h1 {
-            font-family: 'Outfit', sans-serif;
-            font-size: 1.5rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .header-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
         }
 
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        /* Shortcuts Bar */
-        .shortcuts-bar {
-            display: flex;
-            gap: 0.8rem;
-            align-items: center;
-        }
-
-        .shortcut-item {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 0.7rem;
-            color: var(--text-muted);
-        }
-
-        kbd {
-            background: var(--bg-input);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 1px 6px;
-            font-size: 0.65rem;
-            font-family: 'SF Mono', 'Menlo', monospace;
+        .header-sub {
+            font-size: 0.8rem;
             color: var(--text-secondary);
         }
 
-        /* Theme Toggle */
-        .theme-toggle {
+        .header-actions {
             display: flex;
             align-items: center;
-            gap: 8px;
-            background: var(--bg-input);
-            border: 1px solid var(--border-color);
-            border-radius: 24px;
-            padding: 4px;
-            cursor: pointer;
-            transition: all var(--transition-speed);
+            gap: 0.5rem;
         }
 
-        .theme-toggle-btn {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            border: none;
+        /* ボタン群 */
+        .btn {
+            font-family: var(--font-sans);
+            font-size: 0.82rem;
+            font-weight: 500;
+            padding: 0.45rem 0.85rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            background-color: var(--bg-surface-elevated);
+            color: var(--text-primary);
             cursor: pointer;
-            display: flex;
+            transition: all 0.15s ease;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 1rem;
-            background: transparent;
-            transition: all var(--transition-speed);
+            gap: 0.4rem;
+            text-decoration: none;
         }
 
-        .theme-toggle-btn.active {
-            background: var(--bg-secondary);
-            box-shadow: 0 2px 8px var(--shadow-color);
+        .btn:hover:not(:disabled) {
+            border-color: var(--border-focus);
+            background-color: var(--bg-input);
         }
 
-        /* ===== Tabs Navigation ===== */
-        .tabs-container {
-            max-width: 1280px;
-            margin: 1rem auto 0 auto;
-            padding: 0 2rem;
+        .btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
         }
 
-        .tab-menu {
+        .btn-primary {
+            background-color: var(--primary);
+            border-color: var(--primary);
+            color: #ffffff;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            border-color: var(--danger);
+            color: #ffffff;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background-color: #b91c1c;
+            border-color: #b91c1c;
+        }
+
+        .btn-sm {
+            padding: 0.3rem 0.6rem;
+            font-size: 0.75rem;
+        }
+
+        /* ナビゲーションタブ */
+        .tabs-nav {
+            background-color: var(--bg-surface);
+            border-bottom: 1px solid var(--border);
             display: flex;
-            gap: 8px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            padding: 6px;
-            border-radius: 12px;
-            width: fit-content;
-            box-shadow: 0 4px 20px var(--shadow-color);
+            gap: 0.25rem;
+            padding: 0 1.5rem;
+            overflow-x: auto;
         }
 
         .tab-btn {
-            padding: 0.6rem 1.2rem;
-            border-radius: 8px;
-            border: none;
-            background: transparent;
-            color: var(--text-secondary);
+            font-family: var(--font-sans);
             font-size: 0.85rem;
-            font-weight: 600;
+            font-weight: 500;
+            padding: 0.65rem 1rem;
+            color: var(--text-secondary);
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
             cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            transition: color 0.15s, border-color 0.15s;
+            white-space: nowrap;
         }
 
         .tab-btn:hover {
             color: var(--text-primary);
-            background: var(--bg-card-hover);
         }
 
         .tab-btn.active {
-            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-            color: #ffffff;
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            font-weight: 600;
         }
 
-        /* ===== Layout Container ===== */
-        .container {
-            max-width: 1280px;
-            margin: 0 auto;
-            padding: 1.5rem 2rem;
+        /* メインコンテナ */
+        .app-container {
             display: grid;
-            grid-template-columns: 1.2fr 1fr;
-            gap: 1.5rem;
+            grid-template-columns: 1fr 380px;
+            gap: 1.25rem;
+            padding: 1.25rem 1.5rem;
+            flex: 1;
+            max-width: 1600px;
+            width: 100%;
+            margin: 0 auto;
         }
 
-        .tab-panel {
-            display: none;
+        /* パネル */
+        .card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.25rem;
         }
 
-        .tab-panel.active {
-            display: block;
-            animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(4px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* ===== Panel / Card Styles ===== */
-        .panel {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 1.5rem;
-            box-shadow: 0 4px 24px var(--shadow-color);
-            backdrop-filter: blur(12px);
-            margin-bottom: 1.2rem;
-        }
-
-        .panel-title {
-            font-family: 'Outfit', sans-serif;
-            font-size: 1.15rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
+        .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 0.85rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-title {
+            font-size: 0.95rem;
+            font-weight: 600;
             color: var(--text-primary);
         }
 
-        .panel-subtitle {
+        .card-desc {
             font-size: 0.75rem;
-            font-weight: 400;
-            color: var(--text-muted);
+            color: var(--text-secondary);
         }
 
-        /* ===== Progress Bar ===== */
-        .progress-bar-container {
-            margin-bottom: 1.2rem;
-            padding: 0.8rem 1rem;
-            background: var(--bg-input);
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-        }
-
-        .progress-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.5rem;
-            font-size: 0.8rem;
-        }
-
-        .progress-track {
-            width: 100%;
-            height: 6px;
-            background: var(--bg-input);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
-            border-radius: 3px;
-            transition: width 0.5s ease;
-        }
-
-        /* ===== 50音グリッド & 単語グリッド ===== */
-        .char-grid {
+        /* 50音グリッド */
+        .kana-grid {
             display: grid;
-            grid-template-columns: 45px repeat(5, 1fr);
-            gap: 4px;
+            grid-template-columns: 50px repeat(5, 1fr);
+            gap: 6px;
         }
 
-        .grid-header {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.6rem;
-            font-weight: 700;
-            color: var(--accent-1);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 0.2rem 0;
-            border-bottom: 2px solid var(--gradient-bg-1);
-            user-select: none;
-        }
-
-        .row-label {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.65rem;
+        .kana-header {
+            text-align: center;
+            font-size: 0.75rem;
             font-weight: 600;
             color: var(--text-muted);
-            background: var(--bg-input);
-            border-radius: 5px;
-            user-select: none;
+            padding: 4px;
         }
 
-        .char-card {
-            background: var(--bg-input);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 0.4rem 0.2rem;
+        .kana-row-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+        }
+
+        .kana-cell {
+            background-color: var(--bg-surface-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 0.5rem 0.25rem;
             text-align: center;
             cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.15s ease;
             position: relative;
             user-select: none;
         }
 
-        .char-card:hover {
-            transform: translateY(-1px);
-            background: var(--bg-card-hover);
-            border-color: rgba(99, 102, 241, 0.3);
+        .kana-cell:hover {
+            border-color: var(--border-focus);
+            background-color: var(--bg-input);
         }
 
-        .char-card.selected {
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15));
-            border-color: var(--accent-1);
-            box-shadow: 0 0 8px rgba(99, 102, 241, 0.2);
+        .kana-cell.selected {
+            border-color: var(--primary);
+            background-color: rgba(59, 130, 246, 0.15);
+            outline: 2px solid var(--primary);
         }
 
-        .char-card .japanese {
-            font-size: 1.15rem;
+        .kana-char {
+            font-size: 1.1rem;
             font-weight: 700;
             display: block;
             line-height: 1.2;
         }
 
-        .char-card .romaji {
-            font-size: 0.6rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            margin-top: 1px;
-        }
-
-        .char-card .count-badge {
+        .kana-count {
             position: absolute;
             top: 3px;
-            right: 3px;
-            background: var(--badge-bg);
-            border-radius: 6px;
-            padding: 1px 5px;
-            font-size: 0.55rem;
+            right: 4px;
+            font-size: 0.65rem;
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            background-color: var(--bg-base);
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+
+        .kana-count.has-data {
+            color: var(--success);
             font-weight: 600;
-            color: var(--badge-text);
-            min-width: 16px;
-            text-align: center;
         }
 
-        .char-card .count-badge.has-data {
-            background: var(--success);
-            color: white;
-        }
-
-        .char-card.selected .count-badge {
-            background: var(--accent-1);
-            color: #ffffff;
-        }
-
-        /* ===== Custom Words Grid (Tab 2) ===== */
-        .words-grid {
+        /* 単語リスト */
+        .word-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
             gap: 8px;
-            max-height: 380px;
-            overflow-y: auto;
-            padding-right: 4px;
+            margin-top: 0.75rem;
         }
 
-        .form-row {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 1.2rem;
-            background: var(--bg-input);
-            padding: 0.8rem;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-        }
-
-        .form-group {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .form-group label {
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: var(--text-secondary);
-        }
-
-        .input-field {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 0.4rem 0.6rem;
-            color: var(--text-primary);
-            font-size: 0.85rem;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        .input-field:focus {
-            border-color: var(--accent-1);
-        }
-
-        /* ===== Right Column ===== */
-        .right-column {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            position: sticky;
-            top: 90px;
-            align-self: flex-start;
-            max-height: calc(100vh - 120px);
-            overflow-y: auto;
-        }
-
-        .right-column::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        /* ===== Camera Wrapper ===== */
-        .camera-wrapper {
+        .word-item {
+            background-color: var(--bg-surface-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 0.6rem 0.75rem;
+            cursor: pointer;
             position: relative;
-            width: 100%;
-            aspect-ratio: 4/3;
-            background: var(--camera-bg);
-            border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid var(--border-color);
+            transition: all 0.15s ease;
         }
 
-        .camera-feed {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+        .word-item:hover {
+            border-color: var(--border-focus);
+        }
+
+        .word-item.selected {
+            border-color: var(--primary);
+            background-color: rgba(59, 130, 246, 0.15);
+        }
+
+        .word-item-kana {
+            font-size: 0.95rem;
+            font-weight: 600;
             display: block;
         }
 
-        .camera-feed.error {
+        .word-item-romaji {
+            font-size: 0.7rem;
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            display: block;
+        }
+
+        .word-delete-btn {
+            position: absolute;
+            top: 4px;
+            right: 6px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.85rem;
             display: none;
         }
 
-        .camera-placeholder {
-            position: absolute;
-            inset: 0;
+        .word-item:hover .word-delete-btn {
+            display: block;
+        }
+
+        .word-delete-btn:hover {
+            color: var(--danger);
+        }
+
+        /* 右カラム (カメラ・推論モニター) */
+        .monitor-feed-wrap {
+            position: relative;
+            width: 100%;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            background-color: #000;
+            border: 1px solid var(--border);
+            aspect-ratio: 4 / 3;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
+        }
+
+        .monitor-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .monitor-feed.stopped {
+            display: none;
+        }
+
+        .monitor-placeholder {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
             color: var(--text-muted);
             font-size: 0.85rem;
-            gap: 8px;
         }
 
-        .camera-placeholder .icon {
-            font-size: 2.5rem;
-            opacity: 0.5;
+        .monitor-feed.stopped + .monitor-placeholder {
+            display: flex;
         }
 
-        .record-overlay {
+        .rec-badge {
             position: absolute;
             top: 10px;
             left: 10px;
-            background: rgba(239, 68, 68, 0.9);
-            color: white;
-            padding: 4px 12px;
-            border-radius: 16px;
+            background-color: rgba(239, 68, 68, 0.9);
+            color: #fff;
             font-size: 0.7rem;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            animation: pulse 1.2s infinite;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: var(--radius-sm);
             display: none;
+            align-items: center;
+            gap: 5px;
+            letter-spacing: 0.05em;
         }
 
         .rec-dot {
             width: 8px;
             height: 8px;
-            background: white;
             border-radius: 50%;
+            background-color: #fff;
+            animation: pulse 1s infinite;
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 0.7; }
-            50% { opacity: 1; }
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
         }
 
-        .selected-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.6rem 0;
-            font-size: 0.85rem;
+        /* 認識状態インジケータ */
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 0.85rem;
         }
 
-        .selected-char-display {
+        .status-box {
+            background-color: var(--bg-surface-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 0.6rem 0.75rem;
+        }
+
+        .status-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .status-value {
+            font-size: 1.15rem;
             font-weight: 700;
-            color: var(--accent-2);
-            font-size: 1.1rem;
+            font-family: var(--font-mono);
+            color: var(--text-primary);
         }
 
-        /* ===== Buttons & Controls ===== */
-        .controls {
+        .status-value.stable {
+            color: var(--success);
+        }
+
+        /* 手本プレビュー枠 */
+        .guide-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: var(--bg-surface-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 0.5rem 0.75rem;
+            margin-top: 0.85rem;
+            min-height: 64px;
+        }
+
+        .guide-thumb {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+            border-radius: var(--radius-sm);
+            background-color: #fff;
+            display: none;
+        }
+
+        .guide-text {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .guide-text strong {
+            display: block;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+
+        /* コントロールボタングリッド */
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 0.85rem;
+        }
+
+        .control-grid .btn-full {
+            grid-column: 1 / -1;
+        }
+
+        /* 文字起こし出力エリア */
+        .text-stream-box {
+            background-color: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 0.75rem 1rem;
+            min-height: 55px;
+            font-family: var(--font-sans);
+            font-size: 1.05rem;
+            color: var(--text-primary);
+            word-break: break-all;
+            margin-top: 0.85rem;
+        }
+
+        /* フォームグループ */
+        .form-row {
             display: flex;
             gap: 0.5rem;
+            margin-bottom: 0.75rem;
         }
 
-        .btn {
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
             flex: 1;
-            padding: 0.7rem 1rem;
-            border-radius: 10px;
-            border: none;
-            font-size: 0.85rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 6px;
         }
 
-        .btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-            color: white;
-        }
-        .btn-primary:hover:not(:disabled) {
-            transform: scale(1.02);
-            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
-        }
-
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-        }
-        .btn-danger:hover:not(:disabled) {
-            transform: scale(1.02);
-            box-shadow: 0 4px 16px rgba(239, 68, 68, 0.35);
-        }
-
-        .btn-secondary {
-            background: var(--bg-input);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
-        .btn-secondary:hover:not(:disabled) {
-            background: var(--bg-card-hover);
-        }
-
-        .btn-outline-danger {
-            background: transparent;
-            color: var(--danger);
-            border: 1px solid var(--danger);
+        .form-label {
             font-size: 0.75rem;
-        }
-        .btn-outline-danger:hover:not(:disabled) {
-            background: rgba(239, 68, 68, 0.1);
-        }
-
-        /* ===== Inference Display ===== */
-        .inference-display {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.8rem 1rem;
-            background: var(--bg-input);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            margin-top: 0.6rem;
+            color: var(--text-secondary);
+            font-weight: 500;
         }
 
-        .inference-char {
-            font-size: 1.8rem;
-            font-weight: 800;
-            color: var(--accent-1);
-        }
-
-        .text-output-panel {
-            background: var(--bg-input);
-            border-radius: 10px;
-            padding: 1rem;
-            min-height: 120px;
-            max-height: 200px;
-            overflow-y: auto;
-            font-size: 1.15rem;
-            line-height: 1.5;
-            font-weight: 600;
-            letter-spacing: 1px;
-            border: 1px solid var(--border-color);
-            word-break: break-all;
+        .input-text {
+            font-family: var(--font-sans);
+            font-size: 0.82rem;
+            padding: 0.45rem 0.65rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            background-color: var(--bg-input);
             color: var(--text-primary);
         }
 
-        /* ===== Logs ===== */
-        .training-results {
-            margin-top: 0.6rem;
-            padding: 0.8rem;
-            background: var(--log-bg);
-            border-radius: 8px;
-            font-family: 'SF Mono', 'Menlo', monospace;
-            font-size: 0.75rem;
-            max-height: 120px;
-            overflow-y: auto;
-            border: 1px solid var(--border-color);
-            color: var(--log-text);
-            line-height: 1.5;
+        .input-text:focus {
+            outline: none;
+            border-color: var(--primary);
         }
 
-        /* ===== Sliders (Tab 3) ===== */
-        .settings-group {
-            background: var(--bg-input);
-            border: 1px solid var(--border-color);
-            padding: 1.2rem;
-            border-radius: 12px;
+        .range-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
             margin-bottom: 1rem;
         }
 
-        .settings-header {
+        .range-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
         }
 
-        .settings-label {
-            font-size: 0.9rem;
+        .range-val {
+            font-family: var(--font-mono);
             font-weight: 600;
             color: var(--text-primary);
         }
 
-        .settings-val {
-            font-family: monospace;
-            font-size: 0.95rem;
-            font-weight: bold;
-            color: var(--accent-1);
-        }
-
-        .range-slider {
+        .range-input {
             width: 100%;
-            height: 6px;
-            background: var(--border-color);
-            border-radius: 3px;
-            outline: none;
-            -webkit-appearance: none;
-            accent-color: var(--accent-1);
+            accent-color: var(--primary);
         }
 
-        .settings-desc {
-            font-size: 0.7rem;
+        .range-desc {
+            font-size: 0.72rem;
             color: var(--text-muted);
-            margin-top: 6px;
-        }
-
-        /* Speed Indicator Bar */
-        .speed-indicator-bar {
-            width: 100%;
-            height: 8px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            position: relative;
-            overflow: hidden;
-            margin-top: 6px;
-        }
-
-        .speed-indicator-fill {
-            height: 100%;
-            background: var(--accent-1);
-            width: 0%;
-            transition: width 0.1s ease;
-        }
-
-        .speed-indicator-limit {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            width: 2px;
-            background: var(--danger);
-        }
-
-        /* ===== Academic Table (Tab 3) ===== */
-        .academic-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.75rem;
-            margin-top: 0.8rem;
-            border: 1px solid var(--border-color);
-        }
-
-        .academic-table th, .academic-table td {
-            border: 1px solid var(--border-color);
-            padding: 8px;
-            text-align: left;
-        }
-
-        .academic-table th {
-            background: var(--bg-input);
-            color: var(--text-primary);
-            font-weight: 600;
-        }
-
-        .academic-table td {
-            color: var(--text-secondary);
-        }
-
-        /* ===== Toast ===== */
-        .toast-container {
-            position: fixed;
-            top: 75px;
-            right: 20px;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .toast-message {
-            background: var(--toast-bg);
-            border-left: 3px solid var(--accent-1);
-            color: var(--text-primary);
-            padding: 10px 16px;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            backdrop-filter: blur(12px);
-            box-shadow: 0 8px 24px var(--shadow-color);
-            min-width: 220px;
-            max-width: 320px;
-            transform: translateX(120%);
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border: 1px solid var(--border-color);
-        }
-        .toast-message.show { transform: translateX(0); }
-        .toast-message.toast-error { border-left-color: var(--danger); }
-        .toast-message.toast-success { border-left-color: var(--success); }
-
-        /* ===== VLA Panel ===== */
-        .vla-preview-box {
-            margin-top: 0.6rem;
-            padding: 0.6rem;
-            background: var(--log-bg);
-            border-radius: 6px;
-            font-family: 'SF Mono', 'Menlo', monospace;
-            font-size: 0.7rem;
-            max-height: 80px;
-            overflow-y: auto;
-            border: 1px solid var(--border-color);
-            color: var(--text-secondary);
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-        
-        .chart-container {
-            margin-top: 0.8rem;
-            background: var(--bg-input);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            padding: 8px;
-        }
-
-        .chart-title {
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: var(--text-secondary);
-            margin-bottom: 4px;
-            text-align: center;
-        }
-
-        /* ===== Flow Visualization Styles ===== */
-        .flow-stepper {
-            display: flex;
-            flex-direction: column;
-            gap: 1.2rem;
-            margin-top: 1rem;
-        }
-
-        .flow-step-card {
-            background: var(--bg-input);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 1.2rem;
-            display: flex;
-            gap: 1rem;
-            align-items: flex-start;
-            position: relative;
-            transition: all 0.25s ease;
-            cursor: default;
-        }
-
-        .flow-step-card:hover {
-            transform: translateX(4px);
-            border-color: var(--accent-1);
-            background: var(--bg-card-hover);
-            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
-        }
-
-        .flow-step-badge {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            font-size: 0.9rem;
-            flex-shrink: 0;
-            box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
-        }
-
-        .flow-step-content {
-            flex: 1;
-        }
-
-        .flow-step-title {
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 4px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .flow-step-desc {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            line-height: 1.5;
-            margin-bottom: 8px;
-        }
-
-        .flow-data-io {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(0, 0, 0, 0.15);
-            padding: 6px 10px;
-            border-radius: 6px;
-            font-family: 'SF Mono', monospace;
-            font-size: 0.65rem;
-            border: 1px solid var(--border-color);
-            width: fit-content;
-        }
-
-        .flow-io-label {
-            color: var(--text-muted);
-            font-weight: 600;
-        }
-
-        .flow-io-val {
-            color: var(--accent-3);
-            font-weight: bold;
-        }
-
-        .flow-io-arrow {
-            color: var(--text-muted);
-        }
-
-        .flow-connector {
-            width: 2px;
-            height: 20px;
-            background: dashed var(--border-color);
-            margin-left: 31px;
-            border-left: 2px dashed rgba(255, 255, 255, 0.15);
-        }
-
-        /* ===== Flow Tab Full-Width Override & Branching ===== */
-        .container.flow-active {
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-        }
-
-        .container.flow-active > div:first-child {
-            width: 100%;
-            max-width: 1100px;
-            margin: 0 auto;
-        }
-
-        .container.flow-active .right-column {
-            display: none !important;
-        }
-
-        .flow-branches-row {
-            display: flex;
-            gap: 1.2rem;
-            width: 100%;
-            margin: 1.2rem 0;
-        }
-
-        .flow-branch-card {
-            flex: 1;
-            background: var(--bg-input);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 1.2rem;
-            position: relative;
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            cursor: default;
-        }
-
-        .flow-branch-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--accent-1);
-            background: var(--bg-card-hover);
-            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.15);
-        }
-
-        .flow-branch-tag {
-            position: absolute;
-            top: -10px;
-            left: 15px;
-            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-            color: white;
-            font-size: 0.65rem;
-            font-weight: 800;
-            padding: 2px 10px;
-            border-radius: 4px;
-            box-shadow: 0 4px 8px rgba(99, 102, 241, 0.3);
-        }
-
-        @keyframes pulse-glow {
-            0% { box-shadow: 0 0 5px rgba(99, 102, 241, 0.3); }
-            50% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.6); }
-            100% { box-shadow: 0 0 5px rgba(99, 102, 241, 0.3); }
-        }
-
-        .flow-step-card:hover .flow-step-badge {
-            animation: pulse-glow 1.5s infinite;
-        }
-
-        .flow-branch-card:hover .flow-branch-tag {
-            animation: pulse-glow 1.5s infinite;
-        }
-
-        /* ===== Nested L-focused Sub-branches ===== */
-        .flow-sub-branches {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.6rem;
-            margin-top: 0.8rem;
-            width: 100%;
-        }
-
-        .flow-sub-branch-card {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 0.8rem;
-            font-size: 0.68rem;
-            transition: all 0.2s ease;
-        }
-
-        .flow-sub-branch-card:hover {
-            border-color: var(--accent-2);
-            background: rgba(99, 102, 241, 0.02);
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
-            transform: translateY(-2px);
-        }
-
-        .flow-sub-branch-title {
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 4px;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .flow-sub-branch-desc {
-            color: var(--text-secondary);
             line-height: 1.4;
         }
 
-        @media (max-width: 900px) {
-            .flow-branches-row {
-                flex-direction: column;
-                gap: 1.5rem;
-            }
+        /* ログ・結果コンソール */
+        .console-box {
+            background-color: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 0.75rem;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+            max-height: 180px;
+            overflow-y: auto;
+            line-height: 1.4;
+        }
+
+        /* トースト通知 */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: var(--bg-surface-elevated);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 0.65rem 1.1rem;
+            font-size: 0.82rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.2s ease;
+            pointer-events: none;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.toast-error {
+            border-left: 4px solid var(--danger);
+        }
+
+        .toast.toast-success {
+            border-left: 4px solid var(--success);
+        }
+
+        .mode-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.85rem;
+        }
+
+        .mode-label {
+            color: var(--primary);
         }
     </style>
 </head>
 <body>
-    <div class="toast-container" id="toastContainer"></div>
-
     <header>
-        <div class="header-left">
-            <h1>📝 手話指文字データ収集 &amp; VLA学習システム</h1>
+        <div class="header-brand">
+            <span class="header-title">手話動作解析・VLA実験システム</span>
+            <span class="header-sub">Hand Sign Experiment Dashboard</span>
         </div>
-        <div class="header-right">
-            <div class="theme-toggle" id="themeToggle">
-                <button class="theme-toggle-btn active" id="btnDark" title="ダークモード">🌙</button>
-                <button class="theme-toggle-btn" id="btnLight" title="ライトモード">☀️</button>
-            </div>
+        <div class="header-actions">
+            <button class="btn btn-sm" id="btnLaunchViewerTop" onclick="launchViewer()" title="直近の録画データを3Dビューアで確認">
+                3D骨格ビューア起動
+            </button>
+            <button class="btn btn-sm" id="btnThemeToggle" onclick="toggleTheme()">
+                表示切替 (明/暗)
+            </button>
         </div>
     </header>
 
-    <!-- タブメニューナビゲーション -->
-    <div class="tabs-container">
-        <div class="tab-menu">
-            <button class="tab-btn active" id="tabBtnHiragana" onclick="switchTab('hiragana')">
-                🖐️ ひらがな（50音指文字）
-            </button>
-            <button class="tab-btn" id="tabBtnWords" onclick="switchTab('words')">
-                🤝 手話単語（動的アクション）
-            </button>
-            <button class="tab-btn" id="tabBtnSettings" onclick="switchTab('settings')">
-                ⚙️ 研究パラメータ・手法比較
-            </button>
-            <button class="tab-btn" id="tabBtnFlow" onclick="switchTab('flow')">
-                🌊 研究フロー解説
-            </button>
-        </div>
-    </div>
+    <nav class="tabs-nav">
+        <button class="tab-btn active" id="tabBtnHiragana" onclick="switchTab('hiragana')">指文字収集 (50音)</button>
+        <button class="tab-btn" id="tabBtnWords" onclick="switchTab('words')">単語収集 (両手)</button>
+        <button class="tab-btn" id="tabBtnTrain" onclick="switchTab('train')">モデル学習・評価</button>
+        <button class="tab-btn" id="tabBtnVla" onclick="switchTab('vla')">VLAデータ変換</button>
+        <button class="tab-btn" id="tabBtnSettings" onclick="switchTab('settings')">システム設定</button>
+    </nav>
 
-    <div class="container">
-        <!-- 左カラム：タブに応じたコンテンツパネル -->
-        <div>
-            <!-- タブ1: ひらがなグリッド -->
-            <div id="panelHiragana" class="tab-panel active">
-                <div class="panel">
-                    <div class="panel-title">
-                        <span>50音指文字データ収集</span>
-                        <span class="panel-subtitle" id="hiraganaTotalLabel">全 0 件</span>
-                    </div>
-
-                    <div class="progress-bar-container">
-                        <div class="progress-header">
-                            <span style="color: var(--text-secondary); font-weight: 500;">ひらがな収集進捗</span>
-                            <span id="progressLabel" style="color: var(--accent-1); font-weight: 600;">0 / 46 文字</span>
+    <main class="app-container">
+        <!-- 左カラム: タブ別コンテンツ -->
+        <section class="left-pane">
+            <!-- 1. 指文字 (50音) -->
+            <div id="panelHiragana" class="tab-content active">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">50音指文字の収録</div>
+                            <div class="card-desc">文字を選択し、Spaceキーで録画を開始・停止します。</div>
                         </div>
-                        <div class="progress-track">
-                            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-                        </div>
+                        <span id="hiraganaSummary" style="font-size: 0.8rem; color: var(--text-secondary); font-family: var(--font-mono);">0 / 46 文字 (全 0 件)</span>
                     </div>
-
-                    <div class="char-grid" id="charGrid">
-                        <!-- JavaScriptで動的生成 -->
-                    </div>
+                    <div class="kana-grid" id="kanaGrid"></div>
                 </div>
             </div>
 
-            <!-- タブ2: 手話単語マネージャー -->
-            <div id="panelWords" class="tab-panel">
-                <div class="panel">
-                    <div class="panel-title">
-                        <span>両手用手話単語の登録・収集</span>
-                        <span class="panel-subtitle" id="wordsTotalLabel">登録単語数: 0</span>
+            <!-- 2. 手話単語 -->
+            <div id="panelWords" class="tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">手話単語の登録・収録</div>
+                            <div class="card-desc">両手動作を伴う語彙を登録し、時系列骨格データを収集します。</div>
+                        </div>
+                        <span id="wordsSummary" style="font-size: 0.8rem; color: var(--text-secondary); font-family: var(--font-mono);">登録: 0 語</span>
                     </div>
-
-                    <!-- 単語追加フォーム -->
                     <div class="form-row">
-                        <div class="form-group" style="flex: 1.2;">
-                            <label>ひらがな・日本語表記</label>
-                            <input type="text" class="input-field" id="newWordKana" placeholder="例: りんご">
+                        <div class="form-group" style="flex: 1.5;">
+                            <label class="form-label">単語表記 (日本語)</label>
+                            <input type="text" class="input-text" id="newWordKana" placeholder="例: りんご">
                         </div>
                         <div class="form-group">
-                            <label>ローマ字ID (英小文字)</label>
-                            <input type="text" class="input-field" id="newWordRomaji" placeholder="例: ringo">
+                            <label class="form-label">識別子 (ローマ字)</label>
+                            <input type="text" class="input-text" id="newWordRomaji" placeholder="例: ringo">
                         </div>
-                        <button class="btn btn-primary" onclick="addCustomWord()" style="align-self: flex-end; padding: 0.55rem 1rem; border-radius: 6px; flex: 0.4;">
-                            ➕ 追加
-                        </button>
+                        <button class="btn btn-primary" onclick="addCustomWord()" style="align-self: flex-end;">追加</button>
                     </div>
+                    <div class="word-list" id="wordsGrid"></div>
+                </div>
+            </div>
 
-                    <!-- 登録済み単語グリッド -->
-                    <div class="words-grid" id="wordsGrid">
-                        <!-- JavaScriptで動的生成 -->
+            <!-- 3. モデル学習・評価 -->
+            <div id="panelTrain" class="tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">SVM分類器の学習と評価</div>
+                        <div class="card-desc">収集したCSVデータの幾何正規化およびRBF-SVMの訓練を実行します。</div>
+                    </div>
+                    <div class="mode-bar">
+                        <span>対象データ: <strong class="mode-label">ひらがな</strong></span>
+                        <button class="btn btn-sm" onclick="setDataMode('hiragana')">ひらがな</button>
+                        <button class="btn btn-sm" onclick="setDataMode('words')">単語</button>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.85rem;">
+                        <button class="btn" id="btnPreprocess" onclick="preprocessData()">一括前処理 (正規化)</button>
+                        <button class="btn btn-primary" id="btnTrain" onclick="trainSVM()">SVM学習実行</button>
+                    </div>
+                    <div class="console-box" id="trainLogs">待機中: 前処理または学習を実行してください。</div>
+
+                    <div id="chartSection" style="margin-top: 1rem; display: none;">
+                        <div style="font-size: 0.8rem; font-weight: 600; margin-bottom: 6px;">特徴量分布 (PCA 2次元投影)</div>
+                        <canvas id="pcaCanvas" style="width: 100%; height: 220px; background: var(--bg-input); border-radius: var(--radius-md);"></canvas>
+                        <div style="font-size: 0.8rem; font-weight: 600; margin: 12px 0 6px 0;">クラス別検証正解率</div>
+                        <canvas id="accCanvas" style="width: 100%; height: 180px; background: var(--bg-input); border-radius: var(--radius-md);"></canvas>
                     </div>
                 </div>
             </div>
 
-            <!-- タブ3: 研究パラメータ設定 -->
-            <div id="panelSettings" class="tab-panel">
-                <!-- パラメータ調整 -->
-                <div class="panel">
-                    <div class="panel-title">研究実験パラメータの調整</div>
-                    
-                    <!-- K-Means クラスタ数 -->
-                    <div class="settings-group">
-                        <div class="settings-header">
-                            <span class="settings-label">1. K-Means クラスタ数 ($K$) (離散化解像度)</span>
-                            <span class="settings-val" id="valK">64</span>
-                        </div>
-                        <input type="range" class="range-slider" id="sliderK" min="16" max="256" step="16" value="64" oninput="updateKVal(this.value)">
-                        <div class="settings-desc">
-                            126次元の手のポーズ座標を代表ポーズIDに圧縮する際のクラスタ数です。小さい値は圧縮率を高めますがポーズが潰れ、大きい値はポーズの正確性を保ちますが学習負荷が上がります。（卒論におけるKの依存性実験に利用）
-                        </div>
+            <!-- 4. VLAデータ変換 -->
+            <div id="panelVla" class="tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">VLAモデル向けデータセット構築</div>
+                        <div class="card-desc">K-Meansによるポーズの離散トークン化およびJSONL出力を行います。</div>
                     </div>
-
-                    <!-- 静止入力感度しきい値 -->
-                    <div class="settings-group">
-                        <div class="settings-header">
-                            <span class="settings-label">2. リアルタイム文字起こしの静止判定しきい値</span>
-                            <span class="settings-val" id="valThreshold">0.008</span>
-                        </div>
-                        <input type="range" class="range-slider" id="sliderThreshold" min="0.003" max="0.020" step="0.001" value="0.008" oninput="updateThresholdVal(this.value)">
-                        <div class="settings-desc">
-                            手の骨格位置の移動速度（フレーム差）がこの値を下回ると、手が静止したとみなしてSVMがテキストを文字入力します。値を大きくするとブレても反応しやすくなり、小さくするとしっかりと手を止めないと入力されません。
-                        </div>
-                        <div style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 10px; display: flex; justify-content: space-between;">
-                            <span>現在の手の移動速度 (秒間移動量):</span>
-                            <span id="liveVelocityDisplay">0.000</span>
-                        </div>
-                        <div class="speed-indicator-bar">
-                            <div class="speed-indicator-fill" id="speedIndicatorFill"></div>
-                            <div class="speed-indicator-limit" id="speedIndicatorLimit" style="left: 40%"></div>
-                        </div>
+                    <div class="mode-bar">
+                        <span>対象データ: <strong class="mode-label">ひらがな</strong></span>
+                        <button class="btn btn-sm" onclick="setDataMode('hiragana')">ひらがな</button>
+                        <button class="btn btn-sm" onclick="setDataMode('words')">単語</button>
                     </div>
-                </div>
-
-                <!-- 手法比較テーブル -->
-                <div class="panel">
-                    <div class="panel-title">手話アクションモデル・アプローチ比較</div>
-                    <table class="academic-table">
-                        <thead>
-                            <tr>
-                                <th>比較項目</th>
-                                <th>静的分類 (SVMベース)</th>
-                                <th>動作生成 (VLA LoRAベース)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>**制御対象**</td>
-                                <td>50音指文字（片手中心・静的ポーズ）</td>
-                                <td>指文字・両手手話単語（動的アクション）</td>
-                            </tr>
-                            <tr>
-                                <td>**入力フォーマット**</td>
-                                <td>1フレームの幾何正規化座標(126次元)</td>
-                                <td>テキストプロンプト (指示文)</td>
-                            </tr>
-                            <tr>
-                                <td>**出力フォーマット**</td>
-                                <td>テキストラベルの判定結果 (文字・単語)</td>
-                                <td>126次元時系列座標トークン (動きの生成)</td>
-                            </tr>
-                            <tr>
-                                <td>**時間的制約**</td>
-                                <td>静止判定(Velocity &lt; threshold)が必要</td>
-                                <td>時系列シーケンス生成により流れる動作が可能</td>
-                            </tr>
-                            <tr>
-                                <td>**新規性と展望**</td>
-                                <td>頑健な入力UIとしての高い完成度</td>
-                                <td>LLMの指示文脈に応じた条件付き両手動作生成</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div class="range-wrap">
+                        <div class="range-header">
+                            <span>コードブックサイズ (クラスタ数 K)</span>
+                            <span class="range-val" id="valK">64</span>
+                        </div>
+                        <input type="range" class="range-input" id="sliderK" min="16" max="256" step="16" value="64" oninput="updateK(this.value)">
+                        <div class="range-desc">手の126次元関節座標を代表ポーズに量子化する解像度です。Kの大小による動作再現度と学習収束性を比較評価します。</div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.85rem;">
+                        <button class="btn" id="btnQuantize" onclick="runQuantize()">アクション離散化</button>
+                        <button class="btn btn-primary" id="btnExportVLA" onclick="runExportVLA()">JSONLエクスポート</button>
+                    </div>
+                    <div class="console-box" id="vlaLogs">待機中: 離散化またはエクスポートを実行してください。</div>
                 </div>
             </div>
 
-            <!-- タブ4: 研究フロー解説 -->
-            <div id="panelFlow" class="tab-panel">
-                <div class="panel" style="max-width: 1000px; margin: 0 auto;">
-                    <div class="panel-title" style="text-align: center; margin-bottom: 1.5rem;">
-                        <span style="font-size: 1.3rem; font-weight: 800; background: linear-gradient(120deg, var(--accent-1), var(--accent-2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">手話動作獲得システム・処理パイプライン</span>
-                        <span class="panel-subtitle" style="margin-top: 6px;">少量データセットによる手話動作の獲得・評価に向けた、データ前処理と学習の全工程</span>
+            <!-- 5. システム設定 -->
+            <div id="panelSettings" class="tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">推論・判定パラメータ</div>
                     </div>
-
-                    <div class="flow-stepper">
-                        <!-- Step 1: 収録 -->
-                        <div class="flow-step-card">
-                            <div class="flow-step-badge">1</div>
-                            <div class="flow-step-content">
-                                <div class="flow-step-title">📷 骨格関節トラッキング (データ収録)</div>
-                                <div class="flow-step-desc">
-                                    ダッシュボードの入力インターフェースを用いてカメラ映像から動作データを収録する。
-                                    内部ではMediaPipe Handsが動作し、左右各21関節（計42関節）の3次元座標（x, y, z）を30fpsでリアルタイムに抽出・デジタルデータ化する。
-                                </div>
-                                <div class="flow-data-io">
-                                    <span class="flow-io-label">IN:</span>
-                                    <span class="flow-io-val">カメラ動画像 (RGB)</span>
-                                    <span class="flow-io-arrow">➔</span>
-                                    <span class="flow-io-label">OUT:</span>
-                                    <span class="flow-io-val">左右の手の骨格座標 (126次元実数値系列)</span>
-                                </div>
-                            </div>
+                    <div class="range-wrap">
+                        <div class="range-header">
+                            <span>静止判定しきい値 (移動量)</span>
+                            <span class="range-val" id="valThreshold">0.008</span>
                         </div>
-
-                        <div class="flow-connector"></div>
-
-                        <!-- Step 2: 正規化 -->
-                        <div class="flow-step-card">
-                            <div class="flow-step-badge">2</div>
-                            <div class="flow-step-content">
-                                <div class="flow-step-title">📐 幾何学的正規化 (前処理)</div>
-                                <div class="flow-step-desc">
-                                    撮影距離や初期位置、手の骨格サイズの個人差（空間的ノイズ）を排除するための前処理を行う。
-                                    手首の関節点を座標原点 `(0,0,0)` とする空間移動を行い、中指の長さを基準として全体のスケールを一定比率に正規化することで、平行移動・縮尺に対する不変性を獲得する。
-                                </div>
-                                <div class="flow-data-io">
-                                    <span class="flow-io-label">IN:</span>
-                                    <span class="flow-io-val">骨格生座標</span>
-                                    <span class="flow-io-arrow">➔</span>
-                                    <span class="flow-io-label">OUT:</span>
-                                    <span class="flow-io-val">正規化済み不変座標 (126次元)</span>
-                                </div>
-                            </div>
+                        <input type="range" class="range-input" id="sliderThreshold" min="0.003" max="0.020" step="0.001" value="0.008" oninput="updateThreshold(this.value)">
+                        <div class="range-desc">手首・関節の移動量がこの値を下回った際にポーズが静止したと判定します。</div>
+                    </div>
+                    <div class="range-wrap">
+                        <div class="range-header">
+                            <span>確定に必要な連続フレーム数</span>
+                            <span class="range-val" id="valFrames">2</span>
                         </div>
-
-                        <div class="flow-connector" style="height: 30px;"></div>
-                        <div style="text-align: center; font-size: 0.72rem; font-weight: 700; color: var(--accent-1); margin: -0.5rem 0 0.5rem 0; letter-spacing: 1px;">
-                            ▼ 正規化データの利用経路と3つのアプローチ分岐
+                        <input type="range" class="range-input" id="sliderFrames" min="1" max="5" step="1" value="2" oninput="updateInference()">
+                    </div>
+                    <div class="range-wrap">
+                        <div class="range-header">
+                            <span>判定確信度 (Confidence) しきい値</span>
+                            <span class="range-val" id="valConf">75%</span>
                         </div>
-
-                        <!-- Branch Area -->
-                        <div class="flow-branches-row">
-                            <!-- Branch A: SVM -->
-                            <div class="flow-branch-card">
-                                <div class="flow-branch-tag">アプローチ A</div>
-                                <div class="flow-step-title" style="margin-top: 0.5rem;">📝 リアルタイム文字起こし (SVM分類)</div>
-                                <div class="flow-step-desc" style="font-size: 0.72rem; margin-top: 0.5rem;">
-                                    <strong>「静的ポーズの高速識別と入力インターフェース」</strong><br>
-                                    1フレームごとの正規化座標（126次元）をサポートベクターマシン (SVM) に入力し、対応する文字を即時に判定する。
-                                    手の移動速度が定義されたしきい値を下回った時点（静止状態）をトリガーにして文字起こしバッファへ文字を確定入力する。
-                                </div>
-                                <div class="flow-data-io" style="margin-top: 8px;">
-                                    <span class="flow-io-label">特徴:</span>
-                                    <span class="flow-io-val" style="color: var(--success);">超低遅延・静的分類によるテキスト入力</span>
-                                </div>
-                            </div>
-
-                            <!-- Branch B: Continuous VLA -->
-                            <div class="flow-branch-card">
-                                <div class="flow-branch-tag" style="background: linear-gradient(135deg, var(--text-muted), var(--border-color)); color: var(--text-secondary);">アプローチ B</div>
-                                <div class="flow-step-title" style="margin-top: 0.5rem;">〽️ 連続値による動作予測 (VLA)</div>
-                                <div class="flow-step-desc" style="font-size: 0.72rem; margin-top: 0.5rem;">
-                                    <strong>「連続的な数値ベクトル空間における軌跡予測」</strong><br>
-                                    正規化した3次元座標の実数値をそのまま入力・出力としてVLAモデルにマッピングする。
-                                    滑らかな手の動きを直接シミュレーション可能である一方、高次元の実数値予測（回帰問題）となるため、極小データセット環境では学習の収束が困難となりブレが生じる。
-                                </div>
-                                <div class="flow-data-io" style="margin-top: 8px;">
-                                    <span class="flow-io-label">特徴:</span>
-                                    <span class="flow-io-val" style="color: var(--warning);">高解像度な軌跡出力・学習難易度：高</span>
-                                </div>
-                            </div>
-
-                            <!-- Branch C: Discrete VLA -->
-                            <div class="flow-branch-card" style="border-color: var(--accent-1); background: rgba(99, 102, 241, 0.05);">
-                                <div class="flow-branch-tag">★ 推奨アプローチ C</div>
-                                <div class="flow-step-title" style="margin-top: 0.5rem;">💬 ポーズのトークン化 (離散化VLA)</div>
-                                <div class="flow-step-desc" style="font-size: 0.72rem; margin-top: 0.5rem;">
-                                    <strong>「動作を『ポーズ言語』に変換する少量データ対応策」</strong><br>
-                                    126次元の座標をK-Meansによって $K$ 個（例: 64個）の代表ポーズにクラスタリングし、手の状態を離散IDトークン（例: `<pose_23>`）に置換する。
-                                    VLAモデルの事前学習済み言語モデル（L）の推論脳をそのまま流用できるため、極小データ環境下でも高速に動作パターンを学習・収束させることが可能である。
-                                </div>
-                                <div class="flow-data-io" style="margin-top: 8px; margin-bottom: 8px;">
-                                    <span class="flow-io-label">特徴:</span>
-                                    <span class="flow-io-val" style="color: var(--accent-3);">VLAの言語脳を最大活用・少量データ最適</span>
-                                </div>
-                                
-                                <!-- Lにフォーカスした4つの検証アプローチ -->
-                                <div class="flow-sub-branches">
-                                    <div class="flow-sub-branch-card">
-                                        <div class="flow-sub-branch-title">🔑 L-①: LoRAパラメータ最適化</div>
-                                        <div class="flow-sub-branch-desc">LoRAのランク($r=8, 32$等)や適用レイヤー(Attention/MLP)を変更し、動作の再現性と学習効率のトレードオフを比較する。</div>
-                                    </div>
-                                    <div class="flow-sub-branch-card">
-                                        <div class="flow-sub-branch-title">💬 L-②: 言語セマンティクス条件付け</div>
-                                        <div class="flow-sub-branch-desc">指示文(無意味ID vs 日本語の豊かな表現)による差を検証し、事前学習済みの言語文脈が運動獲得に与える効果を測る。</div>
-                                    </div>
-                                    <div class="flow-sub-branch-card">
-                                        <div class="flow-sub-branch-title">📑 L-③: 文脈内学習による生成</div>
-                                        <div class="flow-sub-branch-desc">モデル追加学習を一切行わず、入力プロンプトに見本を数件並べる（In-Context）のみで手話を再現できるかをテストする。</div>
-                                    </div>
-                                    <div class="flow-sub-branch-card">
-                                        <div class="flow-sub-branch-title">💠 L-④: トークン再利用戦略</div>
-                                        <div class="flow-sub-branch-desc">新規トークンの追加と、LLMの辞書に既存の「稀少文字」をポーズとして割り当てる手法のどちらが学習効率に優れるかを比べる。</div>
-                                    </div>
-                                </div>
-                            </div>
+                        <input type="range" class="range-input" id="sliderConf" min="0.50" max="0.99" step="0.01" value="0.75" oninput="updateInference()">
+                    </div>
+                    <div class="range-wrap">
+                        <div class="range-header">
+                            <span>入力クールダウン (秒)</span>
+                            <span class="range-val" id="valCooldown">0.25s</span>
                         </div>
+                        <input type="range" class="range-input" id="sliderCooldown" min="0.05" max="1.0" step="0.05" value="0.25" oninput="updateInference()">
+                    </div>
+                </div>
 
-                        <div class="flow-connector" style="height: 30px;"></div>
-                        <div style="text-align: center; font-size: 0.72rem; font-weight: 700; color: var(--accent-2); margin-top: -0.5rem; letter-spacing: 1px;">
-                            ▼ 収集データのパッケージングと外部クラウドでの学習
-                        </div>
-                        <div class="flow-connector"></div>
-
-                        <!-- Step 3: エクスポート -->
-                        <div class="flow-step-card">
-                            <div class="flow-step-badge">3</div>
-                            <div class="flow-step-content">
-                                <div class="flow-step-title">📤 学習用データエクスポート</div>
-                                <div class="flow-step-desc">
-                                    アプローチBまたはCの形式に準拠して、指示テキストと時系列アクション（座標値またはトークン系列）を統合したJSONL形式のデータセットファイルを自動出力する。
-                                </div>
-                                <div class="flow-data-io">
-                                    <span class="flow-io-label">IN:</span>
-                                    <span class="flow-io-val">前処理済み時系列配列</span>
-                                    <span class="flow-io-arrow">➔</span>
-                                    <span class="flow-io-label">OUT:</span>
-                                    <span class="flow-io-val">VLA入力用 JSONL データセット</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flow-connector"></div>
-
-                        <!-- Step 4: 学習 -->
-                        <div class="flow-step-card">
-                            <div class="flow-step-badge">4</div>
-                            <div class="flow-step-content">
-                                <div class="flow-step-title">🧠 Colab 4-bit PEFT (LoRAファインチューニング)</div>
-                                <div class="flow-step-desc">
-                                    外部のGoogle Colab環境上で 70億パラメータ規模のVLA基盤モデルである openvla-7b を4-bit量子化ロードする。
-                                    モデルの言語脳（L：Llama/Vicunaベース）のAttention層にLoRAを適用して追加学習を行うことで、ローカルマシンの計算負荷を回避しつつ、少量データでの効率的なモデル更新を検証する。
-                                </div>
-                                <div class="flow-data-io">
-                                    <span class="flow-io-label">IN:</span>
-                                    <span class="flow-io-val">openvla-7b 重み ＋ 出力JSONL</span>
-                                    <span class="flow-io-arrow">➔</span>
-                                    <span class="flow-io-label">OUT:</span>
-                                    <span class="flow-io-val">微調整済み LoRA 重み (学習曲線)</span>
-                                </div>
-                            </div>
-                        </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">検証用動画入力ソース</div>
+                        <div class="card-desc">Webカメラの代わりに手話の録画映像ファイル(mp4)を入力します。</div>
+                    </div>
+                    <div class="form-row">
+                        <input type="text" class="input-text" id="videoSourcePath" placeholder="動画ファイルの絶対パス" style="flex: 1;">
+                        <button class="btn btn-primary" onclick="applyVideoSource()">適用</button>
+                        <button class="btn" onclick="resetToWebcam()">カメラに戻す</button>
                     </div>
                 </div>
             </div>
 
-            <!-- 文字起こし出力パネル (左下固定) -->
-            <div class="panel" id="panelTextOutput">
-                <div class="panel-title">文字起こし出力領域</div>
-                <div class="text-output-panel" id="textOutput">
-                    (文字はここに表示されます)
-                </div>
-                <div class="inference-display">
-                    <div>
-                        <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">予測結果</div>
-                        <div class="inference-char" id="predChar">--</div>
-                    </div>
-                    <div style="text-align: right;">
-                        <div style="font-size: 0.65rem; color: var(--text-muted);">確率・信頼度</div>
-                        <div style="font-weight: bold; color: var(--success); font-size: 1.1rem;" id="predConf">0.0%</div>
-                        <div id="stabilityBadge" style="font-size: 0.65rem; font-weight: bold; color: var(--text-muted); margin-top: 2px;">MOVING</div>
+            <!-- 文字起こしテキストバッファ -->
+            <div class="card" style="margin-top: 1rem;">
+                <div class="card-header" style="margin-bottom: 0.4rem; padding-bottom: 0.3rem;">
+                    <span class="card-title" style="font-size: 0.85rem;">認識テキスト出力 (Stream Buffer)</span>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="btn btn-sm" onclick="backspaceText()">1文字削除</button>
+                        <button class="btn btn-sm" onclick="clearText()">クリア</button>
                     </div>
                 </div>
+                <div class="text-stream-box" id="textOutput">(ここに認識された文字が順次出力されます)</div>
             </div>
-        </div>
+        </section>
 
-        <!-- 右カラム：カメラとコントロール、学習管理 -->
-        <div class="right-column">
-            <!-- カメラモニター -->
-            <div class="panel">
-                <div class="panel-title">カメラフィード</div>
-                <div class="camera-wrapper" id="cameraWrapper">
-                    <img src="/video_feed" class="camera-feed" id="cameraFeed" alt="Camera Feed"
-                         onerror="this.classList.add('error'); document.getElementById('cameraPlaceholder').style.display='flex';"
-                         onload="this.classList.remove('error'); document.getElementById('cameraPlaceholder').style.display='none';">
-                    <div class="camera-placeholder" id="cameraPlaceholder" style="display: none;">
-                        <span class="icon" id="cameraPlaceholderIcon">📷</span>
-                        <span id="cameraPlaceholderText">カメラに接続中…</span>
-                        <button class="btn btn-primary" id="btnResumeCenter" style="padding: 6px 16px; font-size: 0.8rem; flex: 0; margin-top: 8px; display: none;" onclick="toggleCameraActive()">▶ カメラを再開</button>
-                        <button class="btn btn-secondary" id="btnReconnectCenter" style="padding: 4px 12px; font-size: 0.75rem; flex: 0;" onclick="reloadCamera()">再接続</button>
+        <!-- 右カラム: カメラフィード・認識状態・録画制御 -->
+        <aside class="right-pane">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">カメラ入力・骨格追跡</span>
+                    <span id="liveVelocity" style="font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-secondary);">速度: 0.000</span>
+                </div>
+                
+                <div class="monitor-feed-wrap">
+                    <img src="/video_feed" class="monitor-feed" id="cameraFeed" alt="Camera Monitor"
+                         onerror="this.classList.add('stopped');"
+                         onload="this.classList.remove('stopped');">
+                    <div class="monitor-placeholder">
+                        <span>カメラ待機中</span>
+                        <button class="btn btn-sm btn-primary" onclick="toggleCamera()">カメラ再開</button>
                     </div>
-                    <div class="record-overlay" id="recordOverlay">
+                    <div class="rec-badge" id="recBadge">
                         <span class="rec-dot"></span>
-                        REC <span id="recordTimer" style="font-variant-numeric: tabular-nums;">0.0s</span>
+                        <span>REC <span id="recTimer">0.0s</span></span>
                     </div>
                 </div>
 
-                <div class="selected-info">
-                    <div>選択中: <span class="selected-char-display" id="selectedCharLabel">--</span></div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted);" id="velocityLabel">Speed: 0.000</div>
-                </div>
-
-                <div class="controls">
-                    <button class="btn btn-primary" id="btnRecord" disabled>⏺ 録画 (Space)</button>
-                    <button class="btn btn-secondary" id="btnDeleteLast" disabled style="flex: 0.6; font-size: 0.8rem;">↩ 元に戻す</button>
-                </div>
-                <div class="controls" style="margin-top: 0.4rem;">
-                    <button class="btn btn-secondary" id="btnToggleCamera" style="font-size: 0.8rem;" onclick="toggleCameraActive()">⏸ カメラ一時停止</button>
-                    <button class="btn btn-secondary" id="btnClearText" style="font-size: 0.8rem; flex: 0.6;">クリア</button>
-                    <button class="btn btn-outline-danger" id="btnClearClass" disabled style="flex: 0.6;">全削除</button>
-                </div>
-            </div>
-
-            <!-- 学習管理パネル -->
-            <div class="panel">
-                <div class="panel-title">モデル学習管理</div>
-                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.8rem;">
-                    <button class="btn btn-secondary" id="btnPreprocess" style="font-size: 0.8rem;">一括前処理 (csv統合)</button>
-                    <button class="btn btn-primary" id="btnTrain" style="font-size: 0.8rem;">モデル学習実行</button>
-                </div>
-                <div class="training-results" id="trainingLogs" style="margin-bottom: 0.8rem;">
-                    ログ出力領域。学習結果が表示されます。
-                </div>
-                
-                <!-- 新規追加: PCA散布図 & クラス精度チャート -->
-                <div id="learningChartsContainer" style="display: none; flex-direction: column; gap: 12px; border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 8px;">
-                    <div class="chart-container" style="display: block; background: rgba(255, 255, 255, 0.02); padding: 8px; border-radius: 8px;">
-                        <div class="chart-title" style="font-size: 0.75rem; font-weight: bold; color: var(--text-secondary); margin-bottom: 6px;">📊 骨格データの分布マップ (PCA 2D投影)</div>
-                        <canvas id="pcaChart" width="300" height="200" style="width: 100%; height: 200px; background: var(--bg-input); border-radius: 8px;"></canvas>
-                        <div style="font-size: 0.6rem; color: var(--text-muted); text-align: right; margin-top: 4px;">※各点が骨格フレーム、色は各文字に対応</div>
-                    </div>
-                    <div class="chart-container" style="display: block; background: rgba(255, 255, 255, 0.02); padding: 8px; border-radius: 8px;">
-                        <div class="chart-title" style="font-size: 0.75rem; font-weight: bold; color: var(--text-secondary); margin-bottom: 6px;">🎯 クラス別テスト正解率 (Accuracy)</div>
-                        <canvas id="classAccChart" width="300" height="180" style="width: 100%; height: 180px; background: var(--bg-input); border-radius: 8px;"></canvas>
+                <!-- 手本プレビュー -->
+                <div class="guide-box" id="guideBox">
+                    <img id="guideThumb" class="guide-thumb" src="" alt="手本">
+                    <div class="guide-text" id="guideText">
+                        <span>文字を選択すると手本を表示します</span>
                     </div>
                 </div>
-            </div>
 
-            <!-- VLAモデル連携 -->
-            <div class="panel">
-                <div class="panel-title">
-                    <span>VLAモデル連携 &amp; 離散化</span>
-                    <span class="panel-subtitle" id="vlaTargetK">クラスタ数 K=64</span>
+                <!-- 推論ステータス -->
+                <div class="status-grid">
+                    <div class="status-box">
+                        <span class="status-label">現在の推定クラス</span>
+                        <div class="status-value" id="predClassLabel">--</div>
+                    </div>
+                    <div class="status-box">
+                        <span class="status-label">確信度 / 状態</span>
+                        <div class="status-value" id="predConfLabel">0.0%</div>
+                    </div>
                 </div>
-                
-                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.8rem;">
-                    <button class="btn btn-secondary" id="btnQuantize" style="font-size: 0.8rem;" onclick="runQuantize()">
-                        💠 アクション離散化
+
+                <!-- 録画・制御ボタン -->
+                <div class="control-grid">
+                    <button class="btn btn-primary btn-full" id="btnRecord" disabled onclick="toggleRecording()">
+                        録画開始 / 停止 (Space)
                     </button>
-                    <button class="btn btn-primary" id="btnExportVLA" style="font-size: 0.8rem;" onclick="runExportVLA()">
-                        📤 VLAデータ出力
+                    <button class="btn" id="btnDeleteLast" disabled onclick="deleteLastRecord()">
+                        直前の録画を破棄
+                    </button>
+                    <button class="btn" id="btnViewLast" onclick="launchViewer()">
+                        3D骨格で確認
+                    </button>
+                    <button class="btn" id="btnToggleCam" onclick="toggleCamera()">
+                        カメラ一時停止
+                    </button>
+                    <button class="btn btn-danger" id="btnClearClass" disabled onclick="clearClassRecords()">
+                        選択クラス全削除
                     </button>
                 </div>
-
-                <div style="font-size: 0.75rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px; padding: 6px; background: var(--bg-input); border-radius: 8px;">
-                    <div style="display: flex; justify-content: space-between;">
-                        <span>離散化モデル:</span>
-                        <span id="quantizerStatus" style="font-weight: 600;">未学習</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span>VLAデータセット:</span>
-                        <span id="vlaStatus" style="font-weight: 600;">未出力</span>
-                    </div>
-                </div>
-
-                <div class="chart-container" id="poseChartContainer" style="display: none;">
-                    <div class="chart-title">出現ポーズトークンの分布 (多様性の視覚化)</div>
-                    <canvas id="poseChart" width="300" height="80" style="width: 100%; height: 80px;"></canvas>
-                </div>
-
-                <div id="vlaPreviewTitle" style="font-size: 0.75rem; font-weight: 600; margin-top: 0.8rem; color: var(--text-secondary); display: none;">出力データプレビュー:</div>
-                <div class="vla-preview-box" id="vlaPreview" style="display: none;"></div>
             </div>
-        </div>
-    </div>
+        </aside>
+    </main>
+
+    <div class="toast" id="toast"></div>
 
     <script>
-        // ===== グローバル状態管理 =====
-        let currentMode = "hiragana"; // "hiragana" または "words"
+        let currentMode = "hiragana";
         let activeLabel = null;
-        let selectedElement = null;
+        let selectedCell = null;
         let fileCounts = {};
         let customWords = {};
-        
-        let recordInterval = null;
-        let recordStartTime = 0;
-
-        // K-Means クラスタ数 と しきい値
-        let currentKValue = 64;
-        let velocityLimit = 0.008;
+        let isRecording = false;
+        let recInterval = null;
+        let recStartTime = 0;
+        let cameraRunning = true;
 
         const ROMAJI_TO_KANA = {
             "a": "あ", "i": "い", "u": "う", "e": "え", "o": "お",
@@ -1526,107 +919,71 @@
             "wa": "わ", "wo": "を", "nn": "ん"
         };
 
-        // ===== 初期化 =====
         window.addEventListener('DOMContentLoaded', () => {
             initTheme();
-            generate50OnGrid();
+            renderKanaGrid();
             loadCustomWords();
             updateCounts();
             startStatusPolling();
-            setupKeyboardShortcuts();
-            updateTrainStats(); // ページロード時に学習グラフを更新
-            
-            // UIイベントリスナー
-            document.getElementById('btnRecord').addEventListener('click', toggleRecording);
-            document.getElementById('btnDeleteLast').addEventListener('click', deleteLastRecord);
-            document.getElementById('btnClearText').addEventListener('click', clearText);
-            document.getElementById('btnClearClass').addEventListener('click', clearClassRecords);
-            document.getElementById('btnPreprocess').addEventListener('click', preprocessData);
-            document.getElementById('btnTrain').addEventListener('click', trainSVM);
-            document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+            setupShortcuts();
+            setDataMode('hiragana');
         });
 
-        // ===== テーマ切替 =====
         function initTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'dark';
-            document.documentElement.setAttribute('data-theme', savedTheme);
-            document.getElementById('btnDark').classList.toggle('active', savedTheme === 'dark');
-            document.getElementById('btnLight').classList.toggle('active', savedTheme === 'light');
+            const saved = localStorage.getItem('app_theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', saved);
         }
 
         function toggleTheme() {
-            const current = document.documentElement.getAttribute('data-theme');
-            const target = current === 'dark' ? 'light' : 'dark';
+            const cur = document.documentElement.getAttribute('data-theme');
+            const target = cur === 'dark' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', target);
-            localStorage.setItem('theme', target);
-            document.getElementById('btnDark').classList.toggle('active', target === 'dark');
-            document.getElementById('btnLight').classList.toggle('active', target === 'light');
-            showToast(`テーマを ${target === 'dark' ? 'ダーク' : 'ライト'} に切り替えました`, "success");
+            localStorage.setItem('app_theme', target);
         }
 
-        // ===== タブ切り替え =====
-        let wasCameraActiveBeforeFlow = false;
+        function showToast(msg, isError = false) {
+            const el = document.getElementById('toast');
+            el.innerText = msg;
+            el.className = `toast ${isError ? 'toast-error' : 'toast-success'} show`;
+            setTimeout(() => el.classList.remove('show'), 3000);
+        }
 
-        async function switchTab(mode) {
-            currentMode = (mode === "settings" || mode === "flow") ? currentMode : mode;
-            
-            // タブボタンのアクティブ化
-            document.getElementById('tabBtnHiragana').classList.toggle('active', mode === 'hiragana');
-            document.getElementById('tabBtnWords').classList.toggle('active', mode === 'words');
-            document.getElementById('tabBtnSettings').classList.toggle('active', mode === 'settings');
-            document.getElementById('tabBtnFlow').classList.toggle('active', mode === 'flow');
+        // タブ切替
+        async function switchTab(tabId) {
+            document.querySelectorAll('.tabs-nav .tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(p => p.style.display = 'none');
 
-            // パネルの表示非表示
-            document.getElementById('panelHiragana').classList.toggle('active', mode === 'hiragana');
-            document.getElementById('panelWords').classList.toggle('active', mode === 'words');
-            document.getElementById('panelSettings').classList.toggle('active', mode === 'settings');
-            document.getElementById('panelFlow').classList.toggle('active', mode === 'flow');
+            const btn = document.getElementById(`tabBtn${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`);
+            if (btn) btn.classList.add('active');
+            const panel = document.getElementById(`panel${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`);
+            if (panel) panel.style.display = 'block';
 
-            // フロー表示時は右カラム(カメラフィード)を消す
-            const container = document.querySelector('.container');
-            container.classList.toggle('flow-active', mode === 'flow');
-
-            // スマートカメラ制御: フロータブの時は自動でカメラを一時停止し、CPU負荷を節約
-            if (mode === 'flow') {
-                if (cameraActive) {
-                    wasCameraActiveBeforeFlow = true;
-                    // 一時停止を実行
-                    await toggleCameraActive();
-                }
-                document.getElementById('panelTextOutput').style.display = 'none';
-            } else {
-                // 他のタブに戻ったとき、以前カメラがONだったなら自動再開
-                if (wasCameraActiveBeforeFlow && !cameraActive) {
-                    wasCameraActiveBeforeFlow = false;
-                    await toggleCameraActive();
-                }
-                document.getElementById('panelTextOutput').style.display = 'block';
-            }
-
-            if (mode !== "settings" && mode !== "flow") {
-                // バックエンドの動作モードを切り替え
-                try {
-                    const response = await fetch(`/api/mode/${mode}`, { method: 'POST' });
-                    const res = await response.json();
-                    if (res.status === 'success') {
-                        showToast(`モードを [${mode === 'hiragana' ? '50音指文字' : '両手単語'}] に変更しました`, "success");
-                        deselectAll();
-                        updateCounts();
-                        updateVLAStatus();
-                        updateTrainStats(); // 新しいモードの学習グラフを再読込
-                    }
-                } catch (e) {
-                    console.error("モード切り替えエラー:", e);
-                }
+            if (tabId === "hiragana" || tabId === "words") {
+                await setDataMode(tabId);
+            } else if (tabId === "train") {
+                fetchTrainStats();
             }
         }
 
-        // ===== 50音グリッド生成 =====
-        function generate50OnGrid() {
-            const grid = document.getElementById('charGrid');
+        async function setDataMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-label').forEach(el => {
+                el.innerText = mode === 'hiragana' ? 'ひらがな' : '単語';
+            });
+            try {
+                await fetch(`/api/mode/${mode}`, { method: 'POST' });
+                deselect();
+                updateCounts();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // 50音グリッド描画
+        function renderKanaGrid() {
+            const grid = document.getElementById('kanaGrid');
             grid.innerHTML = "";
-            
-            const columns = ["a", "i", "u", "e", "o"];
+            const cols = ["a", "i", "u", "e", "o"];
             const rows = [
                 { label: "ア行", keys: ["a", "i", "u", "e", "o"] },
                 { label: "カ行", keys: ["ka", "ki", "ku", "ke", "ko"] },
@@ -1640,850 +997,549 @@
                 { label: "ワ行", keys: ["wa", null, "wo", null, "nn"] }
             ];
 
-            // ヘッダー行
-            grid.appendChild(document.createElement('div')); // 空の左上
-            columns.forEach(col => {
-                const head = document.createElement('div');
-                head.className = "grid-header";
-                head.innerText = col.toUpperCase();
-                grid.appendChild(head);
+            grid.appendChild(document.createElement('div'));
+            cols.forEach(c => {
+                const h = document.createElement('div');
+                h.className = "kana-header";
+                h.innerText = c.toUpperCase();
+                grid.appendChild(h);
             });
 
-            // 各行のカード配置
-            rows.forEach(row => {
-                const labelDiv = document.createElement('div');
-                labelDiv.className = "row-label";
-                labelDiv.innerText = row.label;
-                grid.appendChild(labelDiv);
+            rows.forEach(r => {
+                const label = document.createElement('div');
+                label.className = "kana-row-label";
+                label.innerText = r.label;
+                grid.appendChild(label);
 
-                row.keys.forEach(key => {
-                    if (key === null) {
-                        const empty = document.createElement('div');
-                        grid.appendChild(empty);
+                r.keys.forEach(key => {
+                    if (!key) {
+                        grid.appendChild(document.createElement('div'));
                         return;
                     }
+                    const cell = document.createElement('div');
+                    cell.className = "kana-cell";
+                    cell.id = `cell-${key}`;
+                    cell.onclick = () => selectItem(key, cell);
 
-                    const card = document.createElement('div');
-                    card.className = "char-card";
-                    card.id = `card-${key}`;
-                    card.setAttribute('data-romaji', key);
-                    card.onclick = () => selectLabel(key, card);
+                    const charSpan = document.createElement('span');
+                    charSpan.className = "kana-char";
+                    charSpan.innerText = ROMAJI_TO_KANA[key];
 
-                    const kanaSpan = document.createElement('span');
-                    kanaSpan.className = "japanese";
-                    kanaSpan.innerText = ROMAJI_TO_KANA[key];
+                    const countSpan = document.createElement('span');
+                    countSpan.className = "kana-count";
+                    countSpan.id = `count-${key}`;
+                    countSpan.innerText = "0";
 
-                    const romajiSpan = document.createElement('span');
-                    romajiSpan.className = "romaji";
-                    romajiSpan.innerText = key;
-
-                    const badge = document.createElement('span');
-                    badge.className = "count-badge";
-                    badge.id = `badge-${key}`;
-                    badge.innerText = "0";
-
-                    card.appendChild(kanaSpan);
-                    card.appendChild(romajiSpan);
-                    card.appendChild(badge);
-                    grid.appendChild(card);
+                    cell.appendChild(charSpan);
+                    cell.appendChild(countSpan);
+                    grid.appendChild(cell);
                 });
             });
         }
 
-        // ===== カスタム単語のロード =====
+        // 単語リスト描画
         async function loadCustomWords() {
             try {
-                const response = await fetch('/api/words');
-                customWords = await response.json();
-                renderCustomWordsGrid();
-            } catch (e) {
-                console.error("単語リスト取得エラー:", e);
-            }
-        }
-
-        function renderCustomWordsGrid() {
-            const grid = document.getElementById('wordsGrid');
-            grid.innerHTML = "";
-            
-            const keys = Object.keys(customWords);
-            document.getElementById('wordsTotalLabel').innerText = `登録単語数: ${keys.length}`;
-
-            if (keys.length === 0) {
-                grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 2rem;">登録された手話単語はありません</div>`;
-                return;
-            }
-
-            keys.forEach(key => {
-                const card = document.createElement('div');
-                card.className = "char-card";
-                card.id = `card-word-${key}`;
-                card.onclick = () => selectLabel(key, card);
-
-                const kanaSpan = document.createElement('span');
-                kanaSpan.className = "japanese";
-                kanaSpan.innerText = customWords[key];
-                
-                // 長い文字幅への調整
-                if (customWords[key].length > 4) {
-                    kanaSpan.style.fontSize = "0.95rem";
-                }
-
-                const romajiSpan = document.createElement('span');
-                romajiSpan.className = "romaji";
-                romajiSpan.innerText = key;
-
-                const badge = document.createElement('span');
-                badge.className = "count-badge";
-                badge.id = `badge-word-${key}`;
-                badge.innerText = "0";
-
-                // ホバー時に削除できるボタンをひっそり配置
-                const delBtn = document.createElement('div');
-                delBtn.innerText = "×";
-                delBtn.style.cssText = "position: absolute; bottom: 2px; right: 4px; font-size: 0.75rem; color: var(--danger); font-weight: bold; cursor: pointer; display: none;";
-                delBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    deleteCustomWord(key);
-                };
-                card.appendChild(delBtn);
-                card.onmouseover = () => { delBtn.style.display = "block"; };
-                card.onmouseout = () => { delBtn.style.display = "none"; };
-
-                card.appendChild(kanaSpan);
-                card.appendChild(romajiSpan);
-                card.appendChild(badge);
-                grid.appendChild(card);
-            });
-            
-            updateCounts();
-        }
-
-        // ===== カメラ一時停止・再開制御 =====
-        let cameraActive = true;
-
-        async function toggleCameraActive() {
-            const feed = document.getElementById('cameraFeed');
-            const placeholder = document.getElementById('cameraPlaceholder');
-            const placeholderText = document.getElementById('cameraPlaceholderText');
-            const placeholderIcon = document.getElementById('cameraPlaceholderIcon');
-            const btnResume = document.getElementById('btnResumeCenter');
-            const btnReconnect = document.getElementById('btnReconnectCenter');
-            const btnToggle = document.getElementById('btnToggleCamera');
-
-            if (cameraActive) {
-                // カメラ停止処理
-                try {
-                    const response = await fetch('/api/camera/stop', { method: 'POST' });
-                    const res = await response.json();
-                    if (res.status === 'success') {
-                        cameraActive = false;
-                        
-                        // UIの切り替え
-                        feed.src = "";
-                        feed.classList.add('error');
-                        
-                        placeholder.style.display = "flex";
-                        placeholderIcon.innerText = "⏸";
-                        placeholderText.innerText = "カメラ一時停止中 (CPU負荷軽減中)";
-                        btnResume.style.display = "block";
-                        btnReconnect.style.display = "none";
-                        
-                        btnToggle.innerText = "▶ カメラ再開";
-                        btnToggle.classList.replace('btn-secondary', 'btn-primary');
-                        showToast("カメラを一時停止しました。CPU負荷が下がります。", "success");
-                    }
-                } catch (e) {
-                    showToast("カメラ停止エラーが発生しました", "error");
-                }
-            } else {
-                // カメラ再開処理
-                try {
-                    const response = await fetch('/api/camera/start', { method: 'POST' });
-                    const res = await response.json();
-                    if (res.status === 'success') {
-                        cameraActive = true;
-                        
-                        // UIの切り替え
-                        placeholder.style.display = "none";
-                        btnResume.style.display = "none";
-                        btnReconnect.style.display = "block";
-                        placeholderIcon.innerText = "📷";
-                        placeholderText.innerText = "カメラに接続中…";
-                        
-                        feed.classList.remove('error');
-                        feed.src = `/video_feed?t=${Date.now()}`;
-                        
-                        btnToggle.innerText = "⏸ カメラ一時停止";
-                        btnToggle.classList.replace('btn-primary', 'btn-secondary');
-                        showToast("カメラを再開しました", "success");
-                    }
-                } catch (e) {
-                    showToast("カメラ再開エラーが発生しました", "error");
-                }
-            }
-        }
-
-        // ===== 新規単語登録 =====
-        async function addCustomWord() {
-            const kanaInput = document.getElementById('newWordKana');
-            const romajiInput = document.getElementById('newWordRomaji');
-
-            const kana = kanaInput.value.trim();
-            const romaji = romajiInput.value.trim().toLowerCase();
-
-            if (!kana || !romaji) {
-                showToast("単語の表記とローマ字IDの両方を入力してください", "error");
-                return;
-            }
-
-            if (!/^[a-z_]+$/.test(romaji)) {
-                showToast("ローマ字IDは英小文字(a-z)とアンダーバー(_)のみで入力してください", "error");
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/words/add', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ romaji, kana })
-                });
-                const res = await response.json();
-                if (res.status === 'success') {
-                    customWords = res.words;
-                    renderCustomWordsGrid();
-                    kanaInput.value = "";
-                    romajiInput.value = "";
-                    showToast(`単語「${kana}」を追加しました`, "success");
-                } else {
-                    showToast(res.message, "error");
-                }
-            } catch (e) {
-                showToast("単語登録中に接続エラーが発生しました", "error");
-            }
-        }
-
-        // ===== 単語削除 =====
-        async function deleteCustomWord(romaji) {
-            if (!confirm(`単語「${customWords[romaji]}」の登録と、関連するすべてのレコーディングデータを完全に削除しますか？`)) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/words/delete/${romaji}`, { method: 'POST' });
-                const res = await response.json();
-                if (res.status === 'success') {
-                    customWords = res.words;
-                    renderCustomWordsGrid();
-                    deselectAll();
-                    showToast(res.message, "success");
-                } else {
-                    showToast(res.message, "error");
-                }
-            } catch (e) {
-                showToast("単語削除中に接続エラーが発生しました", "error");
-            }
-        }
-
-        // ===== ラベル選択 =====
-        function selectLabel(label, element) {
-            if (recordInterval) return;
-
-            if (selectedElement) {
-                selectedElement.classList.remove('selected');
-            }
-
-            activeLabel = label;
-            selectedElement = element;
-            element.classList.add('selected');
-
-            const jpName = currentMode === "hiragana" ? ROMAJI_TO_KANA[label] : customWords[label];
-            document.getElementById('selectedCharLabel').innerText = `${jpName} (${label.toUpperCase()})`;
-            document.getElementById('btnRecord').removeAttribute('disabled');
-            document.getElementById('btnClearClass').removeAttribute('disabled');
-        }
-
-        function deselectAll() {
-            if (selectedElement) {
-                selectedElement.classList.remove('selected');
-            }
-            activeLabel = null;
-            selectedElement = null;
-            document.getElementById('selectedCharLabel').innerText = "--";
-            document.getElementById('btnRecord').setAttribute('disabled', 'true');
-            document.getElementById('btnClearClass').setAttribute('disabled', 'true');
-        }
-
-        // ===== ファイルカウントの同期 =====
-        async function updateCounts() {
-            try {
-                const response = await fetch('/api/counts');
-                fileCounts = await response.json();
-
-                let totalFiles = 0;
-                let activeCharCount = 0;
-                
-                const labels = Object.keys(fileCounts);
-
-                labels.forEach(label => {
-                    const count = fileCounts[label];
-                    totalFiles += count;
-                    if (count > 0) activeCharCount++;
-
-                    // バッジの更新
-                    const badgeId = currentMode === "hiragana" ? `badge-${label}` : `badge-word-${label}`;
-                    const badge = document.getElementById(badgeId);
-                    if (badge) {
-                        badge.innerText = count;
-                        badge.classList.toggle('has-data', count > 0);
-                    }
-                });
-
-                // 各種進捗インジケータの更新
-                if (currentMode === "hiragana") {
-                    document.getElementById('hiraganaTotalLabel').innerText = `全 ${totalFiles} 件`;
-                    document.getElementById('progressLabel').innerText = `${activeCharCount} / ${labels.length} 文字`;
-                    const percent = labels.length > 0 ? (activeCharCount / labels.length) * 100 : 0;
-                    document.getElementById('progressFill').style.width = `${percent}%`;
-                } else {
-                    document.getElementById('wordsTotalLabel').innerText = `登録単語数: ${labels.length} (計 ${totalFiles} 件録画)`;
-                }
-            } catch (e) {
-                console.error("件数取得エラー:", e);
-            }
-        }
-
-        // ===== 録画制御 =====
-        async function toggleRecording() {
-            if (!activeLabel) return;
-
-            const btn = document.getElementById('btnRecord');
-
-            if (!recordInterval) {
-                // 録画開始
-                try {
-                    const response = await fetch(`/api/record/start/${activeLabel}`, { method: 'POST' });
-                    const res = await response.json();
-                    if (res.status === 'started') {
-                        btn.innerText = "⏹ 停止 (Space)";
-                        btn.classList.replace('btn-primary', 'btn-danger');
-                        document.getElementById('recordOverlay').style.display = "flex";
-                        
-                        recordStartTime = Date.now();
-                        recordInterval = setInterval(() => {
-                            const elapsed = ((Date.now() - recordStartTime) / 1000).toFixed(1);
-                            document.getElementById('recordTimer').innerText = `${elapsed}s`;
-                        }, 100);
-                        
-                        document.getElementById('btnDeleteLast').setAttribute('disabled', 'true');
-                        document.getElementById('btnClearClass').setAttribute('disabled', 'true');
-                    }
-                } catch (e) {
-                    showToast("録画の開始に失敗しました", "error");
-                }
-            } else {
-                // 録画停止
-                clearInterval(recordInterval);
-                recordInterval = null;
-                
-                try {
-                    const response = await fetch('/api/record/stop', { method: 'POST' });
-                    const res = await response.json();
-                    if (res.status === 'stopped') {
-                        btn.innerText = "⏺ 録画 (Space)";
-                        btn.classList.replace('btn-danger', 'btn-primary');
-                        document.getElementById('recordOverlay').style.display = "none";
-                        
-                        showToast(`「${currentMode === 'hiragana' ? ROMAJI_TO_KANA[activeLabel] : customWords[activeLabel]}」の録画データを保存しました`, "success");
-                        updateCounts();
-                        document.getElementById('btnDeleteLast').removeAttribute('disabled');
-                        document.getElementById('btnClearClass').removeAttribute('disabled');
-                    }
-                } catch (e) {
-                    showToast("録画の停止中に通信エラーが発生しました", "error");
-                }
-            }
-        }
-
-        // ===== データ元に戻す (直近削除) =====
-        async function deleteLastRecord() {
-            try {
-                const response = await fetch('/api/record/delete_last', { method: 'POST' });
-                const res = await response.json();
-                if (res.status === 'success') {
-                    showToast(res.message, "success");
-                    updateCounts();
-                    document.getElementById('btnDeleteLast').setAttribute('disabled', 'true');
-                } else {
-                    showToast(res.message, "error");
-                }
-            } catch (e) {
-                showToast("通信エラーが発生しました", "error");
-            }
-        }
-
-        // ===== 特定クラスのデータ全クリア =====
-        async function clearClassRecords() {
-            if (!activeLabel) return;
-            const jpName = currentMode === "hiragana" ? ROMAJI_TO_KANA[activeLabel] : customWords[activeLabel];
-            
-            if (!confirm(`「${jpName}」の全レコーディングCSVを物理削除して空にしますか？`)) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/record/clear_class/${activeLabel}`, { method: 'POST' });
-                const res = await response.json();
-                if (res.status === 'success') {
-                    showToast(res.message, "success");
-                    updateCounts();
-                }
-            } catch (e) {
-                showToast("通信エラーが発生しました", "error");
-            }
-        }
-
-        // ===== 前処理 =====
-        async function preprocessData() {
-            const logs = document.getElementById('trainingLogs');
-            logs.innerText = "【前処理】データ抽出及び幾何学的正規化を実行中...";
-            
-            try {
-                const response = await fetch('/api/preprocess', { method: 'POST' });
-                const res = await response.json();
-                if (res.status === 'success') {
-                    logs.innerText = `✅ ${res.message}\n` + logs.innerText;
-                    showToast("一括前処理が成功しました", "success");
-                    updateVLAStatus();
-                } else {
-                    logs.innerText = `❌ エラー: ${res.message}\n` + logs.innerText;
-                    showToast(res.message, "error");
-                }
-            } catch (e) {
-                logs.innerText = `❌ 接続エラーが発生しました\n` + logs.innerText;
-            }
-        }
-
-        // ===== SVMモデル学習 =====
-        async function trainSVM() {
-            const logs = document.getElementById('trainingLogs');
-            logs.innerText = "【SVM学習】モデルのトレーニングを実行中... (数秒かかります)\n" + logs.innerText;
-            
-            try {
-                const response = await fetch('/api/train', { method: 'POST' });
-                const res = await response.json();
-                if (res.status === 'success') {
-                    logs.innerText = `🎉 ${res.message}\n` + logs.innerText;
-                    showToast("モデルの学習に成功し、推論器をリロードしました！", "success");
-                    updateTrainStats(); // 新しい学習グラフを描画更新
-                } else {
-                    logs.innerText = `❌ エラー: ${res.message}\n` + logs.innerText;
-                    showToast(res.message, "error");
-                }
-            } catch (e) {
-                logs.innerText = `❌ 接続エラーが発生しました\n` + logs.innerText;
-            }
-        }
-
-        // ===== テキストクリア =====
-        async function clearText() {
-            try {
-                await fetch('/api/clear_text', { method: 'POST' });
-                document.getElementById('textOutput').innerText = "(文字はここに表示されます)";
-                showToast("表示テキストをクリアしました", "success");
+                const res = await fetch('/api/words');
+                customWords = await res.json();
+                renderWordsGrid();
             } catch (e) {
                 console.error(e);
             }
         }
 
-        // ===== パラメータ制御 (Tab 3) =====
-        function updateKVal(val) {
-            currentKValue = parseInt(val);
-            document.getElementById('valK').innerText = val;
-            document.getElementById('vlaTargetK').innerText = `クラスタ数 K=${val}`;
-            updateVLAStatus();
+        function renderWordsGrid() {
+            const grid = document.getElementById('wordsGrid');
+            grid.innerHTML = "";
+            const keys = Object.keys(customWords);
+            document.getElementById('wordsSummary').innerText = `登録: ${keys.length} 語`;
+
+            if (keys.length === 0) {
+                grid.innerHTML = '<div style="color:var(--text-muted); font-size:0.8rem; padding:1rem;">登録済みの単語はありません</div>';
+                return;
+            }
+
+            keys.forEach(k => {
+                const item = document.createElement('div');
+                item.className = "word-item";
+                item.id = `word-${k}`;
+                item.onclick = () => selectItem(k, item);
+
+                const kana = document.createElement('span');
+                kana.className = "word-item-kana";
+                kana.innerText = customWords[k];
+
+                const romaji = document.createElement('span');
+                romaji.className = "word-item-romaji";
+                romaji.innerText = k;
+
+                const del = document.createElement('button');
+                del.className = "word-delete-btn";
+                del.innerText = "×";
+                del.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteWord(k);
+                };
+
+                item.appendChild(kana);
+                item.appendChild(romaji);
+                item.appendChild(del);
+                grid.appendChild(item);
+            });
+            updateCounts();
         }
 
-        async function updateThresholdVal(val) {
-            velocityLimit = parseFloat(val);
-            document.getElementById('valThreshold').innerText = val;
-            
-            // しきい値制限バーの位置更新 (0.003 - 0.020 のレンジを 0% - 100% にマッピング)
-            const min = 0.003, max = 0.020;
-            const percent = ((velocityLimit - min) / (max - min)) * 100;
-            document.getElementById('speedIndicatorLimit').style.left = `${percent}%`;
+        async function addCustomWord() {
+            const kanaInput = document.getElementById('newWordKana');
+            const romajiInput = document.getElementById('newWordRomaji');
+            const kana = kanaInput.value.trim();
+            const romaji = romajiInput.value.trim().toLowerCase();
+
+            if (!kana || !romaji) {
+                showToast("単語表記とローマ字IDを入力してください", true);
+                return;
+            }
 
             try {
-                await fetch(`/api/settings/velocity?threshold=${velocityLimit}`, { method: 'POST' });
+                const res = await fetch('/api/words/add', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ kana, romaji })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    customWords = data.words;
+                    renderWordsGrid();
+                    kanaInput.value = "";
+                    romajiInput.value = "";
+                    showToast(`「${kana}」を登録しました`);
+                } else {
+                    showToast(data.message, true);
+                }
             } catch (e) {
-                console.error("速度しきい値更新エラー:", e);
+                showToast("通信エラーが発生しました", true);
             }
         }
 
-        // ===== リアルタイムステータスポーリング =====
+        async function deleteWord(romaji) {
+            if (!confirm(`「${customWords[romaji]}」の登録とデータを削除しますか？`)) return;
+            try {
+                const res = await fetch(`/api/words/delete/${romaji}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    customWords = data.words;
+                    renderWordsGrid();
+                    deselect();
+                    showToast(data.message);
+                }
+            } catch (e) {
+                showToast("削除中にエラーが発生しました", true);
+            }
+        }
+
+        // 選択状態
+        function selectItem(label, element) {
+            if (isRecording) return;
+            if (selectedCell) selectedCell.classList.remove('selected');
+            activeLabel = label;
+            selectedCell = element;
+            element.classList.add('selected');
+
+            const name = currentMode === "hiragana" ? ROMAJI_TO_KANA[label] : customWords[label];
+            const guideThumb = document.getElementById('guideThumb');
+            const guideText = document.getElementById('guideText');
+
+            if (currentMode === "hiragana" && ROMAJI_TO_KANA[label]) {
+                guideThumb.src = `/static/yubimoji_cropped/${label}.png`;
+                guideThumb.style.display = 'block';
+                guideText.innerHTML = `<strong>${name}</strong><span>指文字手本 (自分視点)</span>`;
+            } else {
+                guideThumb.style.display = 'none';
+                guideText.innerHTML = `<strong>${name}</strong><span>単語識別子: ${label}</span>`;
+            }
+
+            document.getElementById('btnRecord').removeAttribute('disabled');
+            document.getElementById('btnClearClass').removeAttribute('disabled');
+        }
+
+        function deselect() {
+            if (selectedCell) selectedCell.classList.remove('selected');
+            activeLabel = null;
+            selectedCell = null;
+            document.getElementById('guideThumb').style.display = 'none';
+            document.getElementById('guideText').innerHTML = '<span>文字を選択すると手本を表示します</span>';
+            document.getElementById('btnRecord').setAttribute('disabled', 'true');
+            document.getElementById('btnClearClass').setAttribute('disabled', 'true');
+        }
+
+        // 録画件数の同期
+        async function updateCounts() {
+            try {
+                const res = await fetch('/api/counts');
+                fileCounts = await res.json();
+                let total = 0, filled = 0;
+                const labels = Object.keys(fileCounts);
+
+                labels.forEach(l => {
+                    const c = fileCounts[l];
+                    total += c;
+                    if (c > 0) filled++;
+                    const badge = document.getElementById(`count-${l}`);
+                    if (badge) {
+                        badge.innerText = c;
+                        badge.classList.toggle('has-data', c > 0);
+                    }
+                });
+
+                if (currentMode === "hiragana") {
+                    document.getElementById('hiraganaSummary').innerText = `${filled} / ${labels.length} 文字 (全 ${total} 件)`;
+                } else {
+                    document.getElementById('wordsSummary').innerText = `登録: ${labels.length} 語 (全 ${total} 件)`;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // 録画制御
+        async function toggleRecording() {
+            if (!activeLabel) return;
+            const btn = document.getElementById('btnRecord');
+
+            if (!isRecording) {
+                try {
+                    const res = await fetch(`/api/record/start/${activeLabel}`, { method: 'POST' });
+                    const data = await res.json();
+                    if (data.status === 'started') {
+                        isRecording = true;
+                        btn.innerText = "録画停止 (Space)";
+                        btn.classList.replace('btn-primary', 'btn-danger');
+                        document.getElementById('recBadge').style.display = 'flex';
+                        recStartTime = Date.now();
+                        recInterval = setInterval(() => {
+                            const sec = ((Date.now() - recStartTime) / 1000).toFixed(1);
+                            document.getElementById('recTimer').innerText = `${sec}s`;
+                        }, 100);
+                        document.getElementById('btnDeleteLast').setAttribute('disabled', 'true');
+                    }
+                } catch (e) {
+                    showToast("録画開始に失敗しました", true);
+                }
+            } else {
+                clearInterval(recInterval);
+                try {
+                    const res = await fetch('/api/record/stop', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.status === 'stopped') {
+                        isRecording = false;
+                        btn.innerText = "録画開始 / 停止 (Space)";
+                        btn.classList.replace('btn-danger', 'btn-primary');
+                        document.getElementById('recBadge').style.display = 'none';
+                        showToast("録画を保存しました");
+                        updateCounts();
+                        document.getElementById('btnDeleteLast').removeAttribute('disabled');
+                    }
+                } catch (e) {
+                    showToast("録画停止中にエラーが発生しました", true);
+                }
+            }
+        }
+
+        async function deleteLastRecord() {
+            try {
+                const res = await fetch('/api/record/delete_last', { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(data.message);
+                    updateCounts();
+                    document.getElementById('btnDeleteLast').setAttribute('disabled', 'true');
+                } else {
+                    showToast(data.message, true);
+                }
+            } catch (e) {
+                showToast("通信エラーが発生しました", true);
+            }
+        }
+
+        async function clearClassRecords() {
+            if (!activeLabel) return;
+            const name = currentMode === "hiragana" ? ROMAJI_TO_KANA[activeLabel] : customWords[activeLabel];
+            if (!confirm(`「${name}」の収録CSVデータを全件削除しますか？`)) return;
+
+            try {
+                const res = await fetch(`/api/record/clear_class/${activeLabel}`, { method: 'POST' });
+                const data = await res.json();
+                showToast(data.message);
+                updateCounts();
+            } catch (e) {
+                showToast("削除中にエラーが発生しました", true);
+            }
+        }
+
+        // 3Dビューア起動
+        async function launchViewer() {
+            try {
+                showToast("3D骨格ビューアを起動しています...");
+                const res = await fetch('/api/viewer/launch', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({})
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(data.message);
+                } else {
+                    showToast(data.message, true);
+                }
+            } catch (e) {
+                showToast("ビューア起動エラー", true);
+            }
+        }
+
+        // カメラ制御
+        async function toggleCamera() {
+            const feed = document.getElementById('cameraFeed');
+            const btn = document.getElementById('btnToggleCam');
+            if (cameraRunning) {
+                await fetch('/api/camera/stop', { method: 'POST' });
+                cameraRunning = false;
+                feed.classList.add('stopped');
+                btn.innerText = "カメラ再開";
+                showToast("カメラを停止しました");
+            } else {
+                await fetch('/api/camera/start', { method: 'POST' });
+                cameraRunning = true;
+                feed.classList.remove('stopped');
+                feed.src = `/video_feed?t=${Date.now()}`;
+                btn.innerText = "カメラ一時停止";
+                showToast("カメラを再開しました");
+            }
+        }
+
+        // ステータスポーリング
         function startStatusPolling() {
             setInterval(async () => {
                 try {
-                    const response = await fetch('/api/status');
-                    const status = await response.json();
+                    const res = await fetch('/api/status');
+                    const st = await res.json();
 
-                    // 文字起こしバッファ更新
-                    const out = document.getElementById('textOutput');
-                    if (status.text_buffer) {
-                        out.innerText = status.text_buffer;
-                    } else if (out.innerText !== "(文字はここに表示されます)") {
-                        out.innerText = "(文字はここに表示されます)";
+                    document.getElementById('liveVelocity').innerText = `速度: ${st.velocity.toFixed(3)}`;
+
+                    const textOut = document.getElementById('textOutput');
+                    if (st.text_buffer) {
+                        textOut.innerText = st.text_buffer;
                     }
 
-                    // 予測結果と信頼度更新
-                    const mode = status.task_mode;
-                    if (status.pred_class !== "--") {
-                        const jpName = mode === "hiragana" ? ROMAJI_TO_KANA[status.pred_class] : customWords[status.pred_class];
-                        document.getElementById('predChar').innerText = `${jpName} (${status.pred_class.toUpperCase()})`;
-                        document.getElementById('predConf').innerText = `${(status.confidence * 100).toFixed(1)}%`;
+                    const classLabel = document.getElementById('predClassLabel');
+                    const confLabel = document.getElementById('predConfLabel');
+
+                    if (st.pred_class && st.pred_class !== "--") {
+                        const name = st.task_mode === "hiragana" ? (ROMAJI_TO_KANA[st.pred_class] || st.pred_class) : (customWords[st.pred_class] || st.pred_class);
+                        classLabel.innerText = `${name} (${st.pred_class.toUpperCase()})`;
+                        confLabel.innerText = `${(st.confidence * 100).toFixed(1)}% ${st.is_stable ? '●' : '○'}`;
+                        confLabel.className = `status-value ${st.is_stable ? 'stable' : ''}`;
                     } else {
-                        document.getElementById('predChar').innerText = "--";
-                        document.getElementById('predConf').innerText = "0.0%";
+                        classLabel.innerText = "--";
+                        confLabel.innerText = "未検出";
+                        confLabel.className = "status-value";
                     }
-
-                    // 安定状態バッジ
-                    const badge = document.getElementById('stabilityBadge');
-                    if (status.is_stable) {
-                        badge.innerText = "STABLE (入力確定)";
-                        badge.style.color = "var(--success)";
-                    } else {
-                        badge.innerText = "MOVING";
-                        badge.style.color = "var(--text-muted)";
-                    }
-
-                    // 右カラム速度表示
-                    document.getElementById('velocityLabel').innerText = `Speed: ${status.velocity.toFixed(4)}`;
-
-                    // 設定タブのリアルタイム速度メーター更新
-                    if (document.getElementById('panelSettings').classList.contains('active')) {
-                        document.getElementById('liveVelocityDisplay').innerText = status.velocity.toFixed(5);
-                        
-                        // 速度プログレスバーの更新
-                        const min = 0.003, max = 0.020;
-                        const percent = Math.min(100, Math.max(0, ((status.velocity - min) / (max - min)) * 100));
-                        document.getElementById('speedIndicatorFill').style.width = `${percent}%`;
-                    }
-
-                } catch (e) {
-                    console.error("ステータスポーリング失敗:", e);
-                }
-            }, 250);
+                } catch (e) {}
+            }, 50);
         }
 
-        // ===== VLA 離散化 & エクスポート =====
-        async function runQuantize() {
-            const btn = document.getElementById('btnQuantize');
-            btn.innerText = "💠 離散化中...";
-            btn.setAttribute('disabled', 'true');
+        // テキスト操作
+        async function clearText() {
+            await fetch('/api/clear_text', { method: 'POST' });
+            document.getElementById('textOutput').innerText = "";
+        }
 
+        async function backspaceText() {
+            await fetch('/api/backspace_text', { method: 'POST' });
+        }
+
+        // 前処理 & SVM学習
+        async function preprocessData() {
+            const logBox = document.getElementById('trainLogs');
+            logBox.innerText = "前処理（手首原点化・スケール正規化）を実行中...";
             try {
-                const response = await fetch(`/api/vla/quantize?n_clusters=${currentKValue}`, { method: 'POST' });
-                const res = await response.json();
-                
-                if (res.status === 'success') {
-                    showToast("K-Meansによるアクション離散化に成功しました！", "success");
-                    document.getElementById('quantizerLogs') ? document.getElementById('quantizerLogs').innerText = res.message : null;
-                    updateVLAStatus();
-                } else {
-                    showToast(res.message, "error");
-                }
+                const res = await fetch('/api/preprocess', { method: 'POST' });
+                const data = await res.json();
+                logBox.innerText = data.message;
+                showToast(data.status === 'success' ? "前処理が完了しました" : data.message, data.status !== 'success');
             } catch (e) {
-                showToast("通信エラーが発生しました", "error");
-            } finally {
-                btn.innerText = "💠 アクション離散化";
-                btn.removeAttribute('disabled');
+                logBox.innerText = "エラーが発生しました";
+            }
+        }
+
+        async function trainSVM() {
+            const logBox = document.getElementById('trainLogs');
+            logBox.innerText = "SVMモデルの学習を実行中...";
+            try {
+                const res = await fetch('/api/train', { method: 'POST' });
+                const data = await res.json();
+                logBox.innerText = data.message;
+                showToast(data.status === 'success' ? "モデル学習が完了しました" : data.message, data.status !== 'success');
+                fetchTrainStats();
+            } catch (e) {
+                logBox.innerText = "学習中にエラーが発生しました";
+            }
+        }
+
+        async function fetchTrainStats() {
+            try {
+                const res = await fetch('/api/train/stats');
+                const data = await res.json();
+                if (data.status === 'not_trained') return;
+                document.getElementById('chartSection').style.display = 'block';
+                if (data.pca_points) drawPCA(data.pca_points);
+                if (data.class_accuracies) drawAcc(data.class_accuracies);
+            } catch (e) {}
+        }
+
+        function drawPCA(points) {
+            const canvas = document.getElementById('pcaCanvas');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.clientWidth * window.devicePixelRatio;
+            const h = canvas.height = canvas.clientHeight * window.devicePixelRatio;
+            ctx.clearRect(0, 0, w, h);
+
+            const xs = points.map(p => p.x), ys = points.map(p => p.y);
+            const minX = Math.min(...xs), maxX = Math.max(...xs);
+            const minY = Math.min(...ys), maxY = Math.max(...ys);
+            const pad = 30 * window.devicePixelRatio;
+
+            const mapX = x => pad + ((x - minX) / (maxX - minX || 1)) * (w - pad * 2);
+            const mapY = y => h - (pad + ((y - minY) / (maxY - minY || 1)) * (h - pad * 2));
+
+            const labels = [...new Set(points.map(p => p.label))];
+            points.forEach(p => {
+                const idx = labels.indexOf(p.label);
+                const hue = (idx * (360 / labels.length)) % 360;
+                ctx.beginPath();
+                ctx.arc(mapX(p.x), mapY(p.y), 3.5 * window.devicePixelRatio, 0, Math.PI * 2);
+                ctx.fillStyle = `hsl(${hue}, 70%, 60%)`;
+                ctx.fill();
+            });
+        }
+
+        function drawAcc(accs) {
+            const canvas = document.getElementById('accCanvas');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.clientWidth * window.devicePixelRatio;
+            const h = canvas.height = canvas.clientHeight * window.devicePixelRatio;
+            ctx.clearRect(0, 0, w, h);
+
+            const keys = Object.keys(accs);
+            if (!keys.length) return;
+            const rowH = h / keys.length;
+
+            keys.forEach((k, i) => {
+                const val = accs[k];
+                const y = i * rowH;
+                const barW = (w - 80 * window.devicePixelRatio) * val;
+
+                ctx.fillStyle = "rgba(255,255,255,0.08)";
+                ctx.fillRect(50 * window.devicePixelRatio, y + 2, w - 80 * window.devicePixelRatio, rowH - 4);
+
+                ctx.fillStyle = val >= 0.9 ? "#10b981" : (val >= 0.7 ? "#3b82f6" : "#f59e0b");
+                ctx.fillRect(50 * window.devicePixelRatio, y + 2, barW, rowH - 4);
+
+                ctx.fillStyle = "#94a3b8";
+                ctx.font = `${10 * window.devicePixelRatio}px sans-serif`;
+                ctx.textAlign = "right";
+                ctx.fillText(ROMAJI_TO_KANA[k] || k, 45 * window.devicePixelRatio, y + rowH * 0.7);
+
+                ctx.textAlign = "left";
+                ctx.fillText(`${(val * 100).toFixed(0)}%`, w - 25 * window.devicePixelRatio, y + rowH * 0.7);
+            });
+        }
+
+        // VLA離散化 & 出力
+        function updateK(val) {
+            document.getElementById('valK').innerText = val;
+        }
+
+        async function runQuantize() {
+            const k = document.getElementById('sliderK').value;
+            const logBox = document.getElementById('vlaLogs');
+            logBox.innerText = `K-Means離散化 (K=${k}) を実行中...`;
+            try {
+                const res = await fetch(`/api/vla/quantize?n_clusters=${k}`, { method: 'POST' });
+                const data = await res.json();
+                logBox.innerText = data.message;
+                showToast(data.status === 'success' ? "離散化が完了しました" : data.message);
+            } catch (e) {
+                logBox.innerText = "エラーが発生しました";
             }
         }
 
         async function runExportVLA() {
-            const btn = document.getElementById('btnExportVLA');
-            btn.innerText = "📤 出力中...";
-            btn.setAttribute('disabled', 'true');
-
+            const k = document.getElementById('sliderK').value;
+            const logBox = document.getElementById('vlaLogs');
+            logBox.innerText = "VLAデータセット (JSONL) を出力中...";
             try {
-                const response = await fetch(`/api/vla/export?n_clusters=${currentKValue}`, { method: 'POST' });
-                const res = await response.json();
-                
-                if (res.status === 'success') {
-                    showToast("VLAトレーニングデータ(JSONL)を書き出しました！", "success");
-                    
-                    // プレビュー表示
-                    document.getElementById('vlaPreviewTitle').style.display = "block";
-                    const preview = document.getElementById('vlaPreview');
-                    preview.style.display = "block";
-                    preview.innerText = `[アプローチA]\n${res.preview_continuous.substring(0, 160)}...\n\n[アプローチB]\n${res.preview_discrete}`;
-                    
-                    updateVLAStatus();
-                } else {
-                    showToast(res.message, "error");
-                }
+                const res = await fetch(`/api/vla/export?n_clusters=${k}`, { method: 'POST' });
+                const data = await res.json();
+                logBox.innerText = `[完了]\n- 連続形式: ${data.continuous_file}\n- 離散形式: ${data.discrete_file}\n\nサンプル:\n${data.preview_discrete}`;
+                showToast("JSONLデータセットを出力しました");
             } catch (e) {
-                showToast("通信エラーが発生しました", "error");
-            } finally {
-                btn.innerText = "📤 VLAデータ出力";
-                btn.removeAttribute('disabled');
+                logBox.innerText = "エクスポート中にエラーが発生しました";
             }
         }
 
-        async function updateVLAStatus() {
-            try {
-                const response = await fetch(`/api/vla/stats?n_clusters=${currentKValue}`);
-                const stats = await response.json();
-
-                const qStatus = document.getElementById('quantizerStatus');
-                const vStatus = document.getElementById('vlaStatus');
-
-                if (stats.has_quantizer) {
-                    qStatus.innerText = `学習済み (クラスタ: ${stats.num_clusters})`;
-                    qStatus.style.color = "var(--success)";
-                } else {
-                    qStatus.innerText = "未学習";
-                    qStatus.style.color = "var(--warning)";
-                }
-
-                if (stats.has_vla_discrete) {
-                    vStatus.innerText = `出力済み (フレーム: ${stats.num_frames})`;
-                    vStatus.style.color = "var(--success)";
-                } else {
-                    vStatus.innerText = "未出力";
-                    vStatus.style.color = "var(--warning)";
-                }
-
-                // ポーズトークン分布グラフ描画
-                if (stats.has_quantizer && stats.pose_distribution.length > 0) {
-                    document.getElementById('poseChartContainer').style.display = "block";
-                    drawPoseDistributionChart(stats.pose_distribution);
-                } else {
-                    document.getElementById('poseChartContainer').style.display = "none";
-                }
-            } catch (e) {
-                console.error("VLAステータス更新失敗:", e);
-            }
+        // 設定更新
+        async function updateThreshold(val) {
+            document.getElementById('valThreshold').innerText = val;
+            await fetch(`/api/settings/velocity?threshold=${val}`, { method: 'POST' });
         }
 
-        // ミニ分布チャートの描画 (HTML5 Canvas)
-        function drawPoseDistributionChart(distribution) {
-            const canvas = document.getElementById('poseChart');
-            const ctx = canvas.getContext('2d');
-            const w = canvas.width;
-            const h = canvas.height;
-            
-            ctx.clearRect(0, 0, w, h);
+        async function updateInference() {
+            const frames = parseInt(document.getElementById('sliderFrames').value);
+            const conf = parseFloat(document.getElementById('sliderConf').value);
+            const cd = parseFloat(document.getElementById('sliderCooldown').value);
 
-            // 最大カウント値の算出
-            const maxVal = Math.max(...distribution.map(d => d.count)) || 1;
-            const numBars = distribution.length;
-            const barWidth = w / numBars;
+            document.getElementById('valFrames').innerText = frames;
+            document.getElementById('valConf').innerText = `${Math.round(conf * 100)}%`;
+            document.getElementById('valCooldown').innerText = `${cd.toFixed(2)}s`;
 
-            // バーの描画
-            for (let i = 0; i < numBars; i++) {
-                const item = distribution[i];
-                const barHeight = (item.count / maxVal) * (h - 15);
-                const x = i * barWidth;
-                const y = h - barHeight - 5;
-
-                // 色のグラデーション演出
-                ctx.fillStyle = `rgba(99, 102, 241, ${0.4 + (item.count / maxVal) * 0.6})`;
-                ctx.fillRect(x + 1, y, barWidth - 2, barHeight);
-            }
-            
-            // X軸ラベルライン
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
-            ctx.beginPath();
-            ctx.moveTo(0, h - 5);
-            ctx.lineTo(w, h - 5);
-            ctx.stroke();
-        }
-
-        // ===== 学習結果の可視化グラフ描画 (PCA散布図 & クラス精度) =====
-        async function updateTrainStats() {
-            try {
-                const response = await fetch('/api/train/stats');
-                const stats = await response.json();
-
-                if (stats.status === 'not_trained') {
-                    document.getElementById('learningChartsContainer').style.display = "none";
-                    return;
-                }
-
-                document.getElementById('learningChartsContainer').style.display = "flex";
-
-                // PCA散布図の描画
-                if (stats.pca_points && stats.pca_points.length > 0) {
-                    drawPCAChart(stats.pca_points);
-                }
-
-                // クラス別精度の描画
-                if (stats.class_accuracies) {
-                    drawClassAccChart(stats.class_accuracies);
-                }
-            } catch (e) {
-                console.error("学習統計データの更新失敗:", e);
-            }
-        }
-
-        // High-DPI (Retina) ディスプレイに対応した高精細 Canvas 設定用ヘルパー
-        function setupCrispCanvas(canvas, baseHeight) {
-            const ctx = canvas.getContext('2d');
-            const dpr = window.devicePixelRatio || 1;
-            
-            // 親コンテナにおけるレイアウト上の実際の表示サイズを取得
-            const rect = canvas.getBoundingClientRect();
-            const displayWidth = rect.width || canvas.clientWidth || 300;
-            const displayHeight = baseHeight;
-            
-            // バッキングストアのピクセル解像度を高DPI化してドットの粗さを防ぐ
-            canvas.width = displayWidth * dpr;
-            canvas.height = displayHeight * dpr;
-            
-            // 表示サイズ（CSS高さ）を固定
-            canvas.style.height = displayHeight + 'px';
-            
-            // 描画倍率を設定（これにより通常の座標値での描画が高解像度で描写されます）
-            ctx.scale(dpr, dpr);
-            
-            return { ctx, w: displayWidth, h: displayHeight };
-        }
-
-        // PCA散布図を描画 (HTML5 Canvas)
-        function drawPCAChart(points) {
-            const canvas = document.getElementById('pcaChart');
-            const { ctx, w, h } = setupCrispCanvas(canvas, 200);
-            ctx.clearRect(0, 0, w, h);
-
-            // 境界値の計算
-            const xs = points.map(p => p.x);
-            const ys = points.map(p => p.y);
-            const minX = Math.min(...xs), maxX = Math.max(...xs);
-            const minY = Math.min(...ys), maxY = Math.max(...ys);
-
-            const pad = 20;
-            const mapX = (x) => pad + ((x - minX) / (maxX - minX || 1)) * (w - 2 * pad);
-            const mapY = (y) => h - (pad + ((y - minY) / (maxY - minY || 1)) * (h - 2 * pad));
-
-            // グリッド線の描画
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
-            ctx.lineWidth = 1;
-            for (let i = 1; i < 4; i++) {
-                // 縦線
-                ctx.beginPath();
-                ctx.moveTo(w * i / 4, 0);
-                ctx.lineTo(w * i / 4, h);
-                ctx.stroke();
-                // 横線
-                ctx.beginPath();
-                ctx.moveTo(0, h * i / 4);
-                ctx.lineTo(w, h * i / 4);
-                ctx.stroke();
-            }
-
-            // ラベルごとの配色ハッシュ
-            const colors = {};
-            const labels = [...new Set(points.map(p => p.label))];
-            labels.forEach((lbl, idx) => {
-                const hue = (idx * (360 / (labels.length || 1))) % 360;
-                colors[lbl] = `hsl(${hue}, 80%, 60%)`;
-            });
-
-            // データプロット
-            points.forEach(p => {
-                const cx = mapX(p.x);
-                const cy = mapY(p.y);
-
-                ctx.beginPath();
-                ctx.arc(cx, cy, 4, 0, 2 * Math.PI);
-                ctx.fillStyle = colors[p.label] || "#6366f1";
-                ctx.fill();
-                ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
-                ctx.lineWidth = 1;
-                ctx.stroke();
-            });
-
-            // 簡易ラベル配置 (各クラスの代表点付近にテキストを描画)
-            labels.forEach(lbl => {
-                const classPoints = points.filter(p => p.label === lbl);
-                if (classPoints.length > 0) {
-                    const avgX = classPoints.reduce((sum, p) => sum + p.x, 0) / classPoints.length;
-                    const avgY = classPoints.reduce((sum, p) => sum + p.y, 0) / classPoints.length;
-                    
-                    const tx = mapX(avgX);
-                    const ty = mapY(avgY);
-
-                    // ラベル文字の背景シャドウ
-                    ctx.font = "bold 9px sans-serif";
-                    ctx.fillStyle = "rgba(10, 10, 16, 0.75)";
-                    ctx.fillText(lbl.toUpperCase(), tx - 4, ty + 3);
-                    
-                    ctx.fillStyle = "#ffffff";
-                    ctx.fillText(lbl.toUpperCase(), tx - 5, ty + 2);
-                }
+            await fetch('/api/settings/inference', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    stability_frames: frames,
+                    confidence_threshold: conf,
+                    input_cooldown: cd
+                })
             });
         }
 
-        // クラス別精度バーチャートを描画 (HTML5 Canvas)
-        function drawClassAccChart(accuracies) {
-            const canvas = document.getElementById('classAccChart');
-            const { ctx, w, h } = setupCrispCanvas(canvas, 180);
-            ctx.clearRect(0, 0, w, h);
-
-            const keys = Object.keys(accuracies);
-            if (keys.length === 0) return;
-
-            const rowHeight = h / (keys.length || 1);
-            const fontHeight = Math.min(10, rowHeight - 4);
-
-            keys.forEach((key, idx) => {
-                const acc = accuracies[key];
-                const y = idx * rowHeight;
-                const barW = Math.max(5, (w - 70) * acc);
-
-                // ラベル名変換 (hiragana の場合は日本語表示)
-                let dispName = key;
-                if (currentMode === "hiragana" && ROMAJI_TO_KANA[key]) {
-                    dispName = ROMAJI_TO_KANA[key];
-                }
-
-                // バー背景
-                ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
-                ctx.fillRect(50, y + 2, w - 70, rowHeight - 4);
-
-                // バーの描画（精度に応じて色変化）
-                let barColor = "rgba(239, 68, 68, 0.85)"; // 危険 (赤)
-                if (acc >= 0.99) {
-                    barColor = "rgba(16, 185, 129, 0.85)"; // 優秀 (緑)
-                } else if (acc >= 0.85) {
-                    barColor = "rgba(99, 102, 241, 0.85)"; // 良好 (青)
-                } else if (acc >= 0.6) {
-                    barColor = "rgba(245, 158, 11, 0.85)"; // 注意 (黄)
-                }
-
-                ctx.fillStyle = barColor;
-                ctx.fillRect(50, y + 2, barW, rowHeight - 4);
-
-                // テキスト（クラス名）
-                ctx.fillStyle = "var(--text-primary)";
-                ctx.font = `bold ${fontHeight}px sans-serif`;
-                ctx.textAlign = "right";
-                ctx.fillText(dispName, 42, y + rowHeight / 2 + fontHeight / 3);
-
-                // テキスト（％数値）
-                ctx.fillStyle = acc >= 0.85 ? "var(--success)" : "var(--text-muted)";
-                ctx.font = `tabular-nums ${fontHeight}px sans-serif`;
-                ctx.textAlign = "left";
-                ctx.fillText(`${(acc * 100).toFixed(0)}%`, w - 18, y + rowHeight / 2 + fontHeight / 3);
+        async function applyVideoSource() {
+            const path = document.getElementById('videoSourcePath').value.trim();
+            if (!path) return;
+            const res = await fetch('/api/settings/video_source', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ path })
             });
+            const data = await res.json();
+            showToast(data.message);
+            setTimeout(() => { document.getElementById('cameraFeed').src = `/video_feed?t=${Date.now()}`; }, 500);
         }
 
-        // ===== キーボードショートカット =====
-        function setupKeyboardShortcuts() {
-            document.addEventListener('keydown', (e) => {
-                // 入力欄フォーカス時はショートカットをバイパス
+        async function resetToWebcam() {
+            await fetch('/api/settings/video_source', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ path: "" })
+            });
+            document.getElementById('videoSourcePath').value = "";
+            showToast("カメラ入力に復帰しました");
+            setTimeout(() => { document.getElementById('cameraFeed').src = `/video_feed?t=${Date.now()}`; }, 500);
+        }
+
+        function setupShortcuts() {
+            document.addEventListener('keydown', e => {
                 if (document.activeElement.tagName === "INPUT") return;
-
                 if (e.code === 'Space') {
                     e.preventDefault();
                     toggleRecording();
@@ -2491,30 +1547,6 @@
                     deleteLastRecord();
                 }
             });
-        }
-
-        // ===== ユーティリティ (トースト・カメラリロード) =====
-        function reloadCamera() {
-            const feed = document.getElementById('cameraFeed');
-            feed.src = `/video_feed?t=${Date.now()}`;
-        }
-
-        function showToast(message, type = "success") {
-            const container = document.getElementById('toastContainer');
-            const toast = document.createElement('div');
-            toast.className = `toast-message toast-${type}`;
-            toast.innerText = message;
-            
-            container.appendChild(toast);
-            
-            // アニメーション表示用
-            setTimeout(() => toast.classList.add('show'), 50);
-            
-            // 3.5秒後に自動消去
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => toast.remove(), 300);
-            }, 3500);
         }
     </script>
 </body>
